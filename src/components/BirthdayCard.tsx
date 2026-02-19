@@ -5,11 +5,10 @@ import HeartTree from "./HeartTree";
 import SparklingName from "./SparklingName";
 
 const photos = [
-  { id: 1, caption: "Pehli baar college mein mili thi 💕", emoji: "📸" },
-  { id: 2, caption: "Hamesha muskurati rehti hai ✨", emoji: "😊" },
-  { id: 3, caption: "Sabse pyaari junior 👑", emoji: "👑" },
-  { id: 4, caption: "College ki best yaadein 📚", emoji: "🎓" },
-  { id: 5, caption: "Dil se special hai tu 💖", emoji: "💝" },
+  { id: 1, caption: "College ki sabse pyaari junior 💕", src: "/photos/khushi-1.jpeg" },
+  { id: 2, caption: "Hamesha muskurati rehti hai ✨", src: "/photos/khushi-2.jpeg" },
+  { id: 3, caption: "Dil se khoobsurat insaan 👑", src: "/photos/khushi-3.jpeg" },
+  { id: 4, caption: "Queen vibes only 💖", src: "/photos/khushi-4.jpeg" },
 ];
 
 const shayari =
@@ -47,7 +46,7 @@ const BirthdayCard = () => {
   const [treeComplete, setTreeComplete] = useState(false);
   const touchStartX = useRef(0);
 
-  const totalPages = 1 + photos.length + 1; // tree + photos + final
+  const totalPages = 1 + photos.length + 1;
 
   const handleOpenCover = () => {
     setCoverOpen(true);
@@ -208,16 +207,12 @@ const BirthdayCard = () => {
       const photo = photos[currentPage - 1];
       return (
         <div className="h-full flex flex-col items-center justify-center">
-          {/* Photo frame */}
-          <div className="w-full aspect-[4/3] bg-muted rounded-xl flex items-center justify-center border-2 border-dashed border-border mb-5 relative overflow-hidden">
-            {/* Decorative gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-accent/5 to-rose-glow/5" />
-            <div className="text-center relative z-10">
-              <span className="text-5xl block mb-2">{photo.emoji}</span>
-              <p className="text-muted-foreground text-xs">
-                Photo {photo.id} yahan add karo
-              </p>
-            </div>
+          <div className="w-full aspect-[4/3] rounded-xl overflow-hidden mb-5 relative shadow-lg border border-border">
+            <img
+              src={photo.src}
+              alt={photo.caption}
+              className="w-full h-full object-cover"
+            />
           </div>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
