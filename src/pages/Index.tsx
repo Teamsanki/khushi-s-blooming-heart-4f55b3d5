@@ -1,12 +1,40 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useRef } from "react";
+import EmojiGame from "@/components/EmojiGame";
+import BirthdayCard from "@/components/BirthdayCard";
 
 const Index = () => {
+  const [unlocked, setUnlocked] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const toggleMusic = () => {
+    if (audioRef.current) {
+      if (playing) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play().catch(() => {});
+      }
+    }
+    setPlaying(!playing);
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background relative">
+      {!unlocked ? (
+        <EmojiGame onComplete={() => setUnlocked(true)} />
+      ) : (
+        <BirthdayCard />
+      )}
+
+      {/* Music Player */}
+      <audio ref={audioRef} src="/birthday-music.mp3" loop />
+      <button
+        onClick={toggleMusic}
+        className="fixed bottom-4 right-4 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg z-50 hover:scale-110 transition-transform text-xl"
+        aria-label="Toggle music"
+      >
+        {playing ? "🔊" : "🔇"}
+      </button>
     </div>
   );
 };
