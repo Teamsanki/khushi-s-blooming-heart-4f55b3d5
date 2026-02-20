@@ -5,10 +5,20 @@ import HeartTree from "./HeartTree";
 import SparklingName from "./SparklingName";
 
 const photos = [
-  { id: 1, caption: "College ki sabse pyaari junior 💕", src: "/photos/khushi-1.jpeg" },
-  { id: 2, caption: "Hamesha muskurati rehti hai ✨", src: "/photos/khushi-2.jpeg" },
-  { id: 3, caption: "Dil se khoobsurat insaan 👑", src: "/photos/khushi-3.jpeg" },
-  { id: 4, caption: "Queen vibes only 💖", src: "/photos/khushi-4.jpeg" },
+  { id: 1, shayari: "Khushi ki muskaan mein chhupa hai jahan sara 💕", src: "/photos/khushi-1.jpeg" },
+  { id: 2, shayari: "Har pal tera chehra yaad aata hai, dil ko sukoon mil jaata hai ✨", src: "/photos/khushi-2.jpeg" },
+  { id: 3, shayari: "Tujhse milke lagta hai zindagi mein rang aa gaye 👑", src: "/photos/khushi-3.jpeg" },
+  { id: 4, shayari: "Queen ho tum dil ki, har baat mein khaas ho 💖", src: "/photos/khushi-4.jpeg" },
+  { id: 5, shayari: "Husn tera chaand sa, nazaakat mein ek kahani hai 🌙", src: "/photos/khushi-5.jpeg" },
+  { id: 6, shayari: "Aankhon mein sapne hain, dil mein pyaar hai tera 🌸", src: "/photos/khushi-6.jpeg" },
+  { id: 7, shayari: "Duniya ki sabse pyaari muskaan sirf teri hai 🌺", src: "/photos/khushi-7.jpeg" },
+  { id: 8, shayari: "Tere jaisi koi nahi, tu ek anmol ratan hai 💎", src: "/photos/khushi-8.jpeg" },
+  { id: 9, shayari: "Khuda ne jab tujhe banaya hoga, farishtey bhi dekhte reh gaye honge 🦋", src: "/photos/khushi-9.jpeg" },
+  { id: 10, shayari: "Tera style, teri adaa, duniya deewani hai tera 👗", src: "/photos/khushi-10.jpeg" },
+  { id: 11, shayari: "Rang birangi duniya mein, tu sabse haseen hai 🌈", src: "/photos/khushi-11.jpeg" },
+  { id: 12, shayari: "Har photo mein ek nayi kahani hai teri 📸", src: "/photos/khushi-12.jpeg" },
+  { id: 13, shayari: "Teri hasi se roshni hoti hai chaaron taraf ⭐", src: "/photos/khushi-13.jpeg" },
+  { id: 14, shayari: "Sundar, pyaari, aur sabse nirali - yehi hai Khushi 🌹", src: "/photos/khushi-14.jpeg" },
 ];
 
 const shayari =
@@ -38,6 +48,28 @@ const useTypewriter = (text: string, speed = 40, start = true) => {
   return { displayed, done };
 };
 
+// Page flip variants - realistic book page turn
+const pageFlipVariants = {
+  enter: (d: number) => ({
+    rotateY: d >= 0 ? 90 : -90,
+    opacity: 0,
+    scale: 0.95,
+    originX: d >= 0 ? 0 : 1,
+  }),
+  center: {
+    rotateY: 0,
+    opacity: 1,
+    scale: 1,
+    originX: 0.5,
+  },
+  exit: (d: number) => ({
+    rotateY: d >= 0 ? -90 : 90,
+    opacity: 0,
+    scale: 0.95,
+    originX: d >= 0 ? 0 : 1,
+  }),
+};
+
 const BirthdayCard = () => {
   const [coverOpen, setCoverOpen] = useState(false);
   const [showPages, setShowPages] = useState(false);
@@ -46,7 +78,7 @@ const BirthdayCard = () => {
   const [treeComplete, setTreeComplete] = useState(false);
   const touchStartX = useRef(0);
 
-  const totalPages = 1 + photos.length + 1;
+  const totalPages = 1 + photos.length + 1; // tree + photos + final
 
   const handleOpenCover = () => {
     setCoverOpen(true);
@@ -83,20 +115,6 @@ const BirthdayCard = () => {
       if (diff > 0) goNext();
       else goPrev();
     }
-  };
-
-  const variants = {
-    enter: (d: number) => ({
-      x: d >= 0 ? 300 : -300,
-      opacity: 0,
-      rotateY: d >= 0 ? 15 : -15,
-    }),
-    center: { x: 0, opacity: 1, rotateY: 0 },
-    exit: (d: number) => ({
-      x: d >= 0 ? -300 : 300,
-      opacity: 0,
-      rotateY: d >= 0 ? -15 : 15,
-    }),
   };
 
   // Cover page
@@ -205,25 +223,7 @@ const BirthdayCard = () => {
 
     if (currentPage >= 1 && currentPage <= photos.length) {
       const photo = photos[currentPage - 1];
-      return (
-        <div className="h-full flex flex-col items-center justify-center">
-          <div className="w-full aspect-[4/3] rounded-xl overflow-hidden mb-5 relative shadow-lg border border-border">
-            <img
-              src={photo.src}
-              alt={photo.caption}
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="text-center font-cursive text-xl sm:text-2xl text-foreground"
-          >
-            {photo.caption}
-          </motion.p>
-        </div>
-      );
+      return <PhotoCard photo={photo} />;
     }
 
     // Final page
@@ -232,26 +232,41 @@ const BirthdayCard = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="relative w-full max-w-sm aspect-[3/4] bg-card rounded-2xl shadow-2xl overflow-hidden border border-border">
+      <div
+        className="relative w-full max-w-sm aspect-[3/4] bg-card rounded-2xl shadow-2xl overflow-hidden border border-border"
+        style={{ perspective: "1200px" }}
+      >
         {/* Paper texture */}
         <div className="absolute inset-0 paper-lines opacity-30" />
+
+        {/* Page curl shadow effect */}
+        <div className="absolute inset-0 pointer-events-none z-[1]"
+          style={{
+            background: "linear-gradient(to right, hsl(var(--foreground) / 0.03) 0%, transparent 5%, transparent 95%, hsl(var(--foreground) / 0.06) 100%)",
+          }}
+        />
 
         <div
           className="relative h-full"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          style={{ perspective: "800px" }}
+          style={{ perspective: "1200px" }}
         >
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={currentPage}
               custom={direction}
-              variants={variants}
+              variants={pageFlipVariants}
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.35, ease: "easeInOut" }}
+              transition={{
+                duration: 0.5,
+                ease: [0.4, 0, 0.2, 1],
+                rotateY: { duration: 0.6, ease: "easeInOut" },
+              }}
               className="absolute inset-0 p-5 sm:p-6 flex flex-col"
+              style={{ backfaceVisibility: "hidden", transformStyle: "preserve-3d" }}
             >
               {renderPage()}
             </motion.div>
@@ -294,6 +309,53 @@ const BirthdayCard = () => {
           ))}
         </div>
       </div>
+    </div>
+  );
+};
+
+// Photo card component with fade-in shayari
+const PhotoCard = ({ photo }: { photo: { src: string; shayari: string } }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  return (
+    <div className="h-full flex flex-col items-center justify-center">
+      {/* Photo frame with fade */}
+      <motion.div
+        className="w-full aspect-[4/3] rounded-xl overflow-hidden mb-4 relative shadow-lg border-2 border-primary/20"
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <img
+          src={photo.src}
+          alt="Khushi"
+          className="w-full h-full object-cover"
+          onLoad={() => setImageLoaded(true)}
+        />
+        {/* Soft gradient overlay at bottom */}
+        <div
+          className="absolute bottom-0 left-0 right-0 h-1/4"
+          style={{
+            background: "linear-gradient(to top, hsl(var(--background) / 0.4), transparent)",
+          }}
+        />
+      </motion.div>
+
+      {/* Shayari quote with fade animation */}
+      {imageLoaded && (
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.6, ease: "easeOut" }}
+          className="text-center px-2"
+        >
+          <div className="w-8 h-px bg-primary/40 mx-auto mb-3" />
+          <p className="font-cursive text-lg sm:text-xl text-foreground leading-relaxed">
+            "{photo.shayari}"
+          </p>
+          <div className="w-8 h-px bg-primary/40 mx-auto mt-3" />
+        </motion.div>
+      )}
     </div>
   );
 };

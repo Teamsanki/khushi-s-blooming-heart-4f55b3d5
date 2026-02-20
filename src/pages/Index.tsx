@@ -2,8 +2,10 @@ import { useState, useRef, useMemo } from "react";
 import EmojiGame from "@/components/EmojiGame";
 import MemoryGame from "@/components/MemoryGame";
 import BirthdayCard from "@/components/BirthdayCard";
+import SplashScreen from "@/components/SplashScreen";
 
 const Index = () => {
+  const [splashDone, setSplashDone] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -22,7 +24,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background relative">
-      {!unlocked ? (
+      {!splashDone ? (
+        <SplashScreen onComplete={() => setSplashDone(true)} />
+      ) : !unlocked ? (
         gameType === "emoji" ? (
           <EmojiGame onComplete={() => setUnlocked(true)} />
         ) : (
