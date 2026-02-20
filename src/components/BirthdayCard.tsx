@@ -321,7 +321,7 @@ const PhotoCard = ({ photo }: { photo: { src: string; shayari: string } }) => {
     <div className="h-full flex flex-col items-center justify-center">
       {/* Photo frame with fade */}
       <motion.div
-        className="w-full aspect-[4/3] rounded-xl overflow-hidden mb-4 relative shadow-lg border-2 border-primary/20"
+        className="w-full rounded-xl overflow-hidden mb-4 relative shadow-lg border-2 border-primary/20"
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
@@ -329,7 +329,7 @@ const PhotoCard = ({ photo }: { photo: { src: string; shayari: string } }) => {
         <img
           src={photo.src}
           alt="Khushi"
-          className="w-full h-full object-cover"
+          className="w-full h-auto object-contain max-h-[55vh]"
           onLoad={() => setImageLoaded(true)}
         />
         {/* Soft gradient overlay at bottom */}
