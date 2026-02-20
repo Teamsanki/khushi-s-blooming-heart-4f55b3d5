@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 
 interface HeartTreeProps {
@@ -10,136 +10,216 @@ const HeartTree = ({ onComplete }: HeartTreeProps) => {
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setStage(1), 1000),
-      setTimeout(() => setStage(2), 1800),
-      setTimeout(() => setStage(3), 2800),
+      setTimeout(() => setStage(1), 1200),
+      setTimeout(() => setStage(2), 2200),
+      setTimeout(() => setStage(3), 3200),
       setTimeout(() => {
         setStage(4);
         onComplete?.();
-      }, 3800),
+      }, 4200),
     ];
     return () => timers.forEach(clearTimeout);
   }, [onComplete]);
 
-  const leaves = ["🍃", "🌿", "☘️", "🍀"];
-  const flowers = ["🌸", "🌺", "🌹", "🌷", "💐", "🌼", "🌻", "🏵️"];
-  const flowerPositions = [
-    { bottom: 100, left: -40 },
-    { bottom: 118, left: 32 },
-    { bottom: 88, left: -28 },
-    { bottom: 132, left: 18 },
-    { bottom: 105, left: -52 },
-    { bottom: 128, left: 44 },
-    { bottom: 92, left: -12 },
-    { bottom: 122, left: -38 },
-  ];
+  // Pre-compute random values so they don't change on re-render
+  const grassData = useMemo(() => Array.from({ length: 30 }).map((_, i) => ({
+    left: `${i * 3.3 + Math.random() * 2}%`,
+    height: 6 + Math.random() * 16,
+  })), []);
+
+  const leafClusterPositions = useMemo(() => [
+    // Top canopy clusters (heart-shaped arrangement)
+    { cx: 0, cy: -155, r: 38 },
+    { cx: -28, cy: -140, r: 30 },
+    { cx: 28, cy: -140, r: 30 },
+    { cx: -18, cy: -165, r: 26 },
+    { cx: 18, cy: -165, r: 26 },
+    { cx: -38, cy: -125, r: 24 },
+    { cx: 38, cy: -125, r: 24 },
+    { cx: 0, cy: -175, r: 22 },
+    // Side canopy
+    { cx: -50, cy: -105, r: 20 },
+    { cx: 50, cy: -105, r: 20 },
+    { cx: -30, cy: -115, r: 22 },
+    { cx: 30, cy: -115, r: 22 },
+  ], []);
+
+  const petalData = useMemo(() => Array.from({ length: 30 }).map(() => ({
+    x: (Math.random() - 0.5) * 280,
+    y: -(Math.random() * 180 + 20),
+    w: 5 + Math.random() * 7,
+    rot: Math.random() * 360,
+    colorIdx: Math.floor(Math.random() * 4),
+  })), []);
+
+  const sparkleData = useMemo(() => Array.from({ length: 10 }).map(() => ({
+    left: `${15 + Math.random() * 70}%`,
+    bottom: 60 + Math.random() * 160,
+  })), []);
+
+  const flowers = ["🌸", "🌺", "🌹", "🌷", "🌼", "🌻"];
+  const flowerPos = useMemo(() => [
+    { b: 30, l: -55 }, { b: 25, l: 50 }, { b: 35, l: -35 },
+    { b: 28, l: 35 }, { b: 32, l: -65 }, { b: 22, l: 60 },
+  ], []);
+
+  const butterflies = ["🦋", "🦋"];
 
   return (
-    <div className="relative w-72 h-80 mx-auto flex items-end justify-center">
-      {/* Grass */}
-      <div className="absolute bottom-0 left-0 right-0 h-6 overflow-hidden">
-        {Array.from({ length: 20 }).map((_, i) => (
+    <div className="relative w-72 h-[340px] mx-auto flex items-end justify-center">
+      {/* Sky gradient background */}
+      <div className="absolute inset-0 rounded-xl overflow-hidden opacity-30"
+        style={{ background: "linear-gradient(to bottom, hsl(200 60% 85%), hsl(120 30% 85%) 70%, hsl(100 40% 75%))" }}
+      />
+
+      {/* Ground / soil */}
+      <div className="absolute bottom-0 left-0 right-0 h-10 rounded-b-xl overflow-hidden">
+        <div className="w-full h-full" style={{ background: "linear-gradient(to bottom, hsl(100 35% 55%), hsl(100 30% 45%))" }} />
+      </div>
+
+      {/* Grass blades */}
+      <div className="absolute bottom-[8px] left-0 right-0 h-8 overflow-hidden z-[2]">
+        {grassData.map((g, i) => (
           <motion.div
-            key={`grass-${i}`}
-            className="absolute bottom-0 w-1 bg-success rounded-t-full"
-            style={{ left: `${i * 5 + Math.random() * 3}%`, height: 8 + Math.random() * 12 }}
+            key={`g-${i}`}
+            className="absolute bottom-0 rounded-t-full"
+            style={{
+              left: g.left,
+              height: g.height,
+              width: i % 3 === 0 ? 3 : 2,
+              background: i % 2 === 0 ? "hsl(120 45% 38%)" : "hsl(110 40% 45%)",
+            }}
             initial={{ scaleY: 0 }}
             animate={{ scaleY: 1 }}
-            transition={{ delay: 0.5 + i * 0.03, duration: 0.3 }}
+            transition={{ delay: 0.3 + i * 0.02, duration: 0.3 }}
           />
         ))}
       </div>
 
-      {/* Ground shadow */}
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-44 h-4 bg-success/15 rounded-full blur-md" />
+      {/* Small ground flowers */}
+      {stage >= 2 && flowerPos.map((fp, i) => (
+        <motion.span
+          key={`gf-${i}`}
+          className="absolute text-sm z-[3]"
+          style={{ bottom: fp.b, left: `calc(50% + ${fp.l}px)` }}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 2.5 + i * 0.1, duration: 0.4, type: "spring" }}
+        >
+          {flowers[i]}
+        </motion.span>
+      ))}
 
       {/* Roots */}
-      <motion.div
-        className="absolute bottom-3 left-1/2 -translate-x-1/2"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2, duration: 0.5 }}
-      >
-        {[-15, 0, 15].map((x, i) => (
-          <motion.div
-            key={`root-${i}`}
-            className="absolute w-1 h-4 bg-tree-trunk/60 rounded-b-full"
-            style={{ left: x, bottom: -3, transform: `rotate(${x}deg)` }}
-            initial={{ height: 0 }}
-            animate={{ height: 12 }}
-            transition={{ delay: 0.3 + i * 0.1, duration: 0.4 }}
-          />
-        ))}
-      </motion.div>
+      {[
+        { x: -12, rot: -25, h: 18, w: 3 },
+        { x: -4, rot: -8, h: 14, w: 2.5 },
+        { x: 4, rot: 8, h: 14, w: 2.5 },
+        { x: 12, rot: 25, h: 18, w: 3 },
+      ].map((r, i) => (
+        <motion.div
+          key={`root-${i}`}
+          className="absolute rounded-b-full z-[1]"
+          style={{
+            bottom: 8,
+            left: `calc(50% + ${r.x}px)`,
+            width: r.w,
+            transform: `rotate(${r.rot}deg)`,
+            transformOrigin: "top center",
+            background: "hsl(25 35% 28%)",
+          }}
+          initial={{ height: 0 }}
+          animate={{ height: r.h }}
+          transition={{ delay: 0.1 + i * 0.08, duration: 0.5 }}
+        />
+      ))}
 
-      {/* Trunk - thicker, textured */}
+      {/* Trunk - realistic with gradient and knots */}
       <motion.div
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 w-4 rounded-t-md overflow-hidden"
-        style={{ background: "linear-gradient(90deg, hsl(25 40% 25%), hsl(25 40% 30%), hsl(25 40% 25%))" }}
+        className="absolute left-1/2 -translate-x-1/2 rounded-t-lg overflow-hidden z-[1]"
+        style={{
+          bottom: 18,
+          width: 18,
+          background: "linear-gradient(90deg, hsl(25 35% 22%), hsl(25 40% 30%) 30%, hsl(25 38% 28%) 60%, hsl(25 35% 24%))",
+        }}
         initial={{ height: 0 }}
-        animate={{ height: 120 }}
+        animate={{ height: 140 }}
         transition={{ duration: 1.2, ease: "easeOut" }}
       >
-        {/* Bark texture lines */}
-        {[20, 40, 60, 80].map(top => (
-          <div key={top} className="absolute w-full h-px bg-tree-trunk/30" style={{ top }} />
+        {/* Bark texture */}
+        {[15, 30, 48, 65, 82, 100, 115].map(t => (
+          <div key={t} className="absolute w-full" style={{ top: t, height: 1, background: "hsl(25 30% 18% / 0.3)" }} />
         ))}
+        {/* Knot */}
+        <div className="absolute w-3 h-3 rounded-full" style={{ top: 55, left: 4, background: "hsl(25 30% 20%)", opacity: 0.4 }} />
+        <div className="absolute w-2 h-2 rounded-full" style={{ top: 90, left: 8, background: "hsl(25 30% 20%)", opacity: 0.3 }} />
       </motion.div>
 
-      {/* Main branches */}
+      {/* Branches */}
       {stage >= 1 && (
         <>
           {[
-            { bottom: 90, ml: -20, rot: 35, h: 40, w: 2.5, delay: 0 },
-            { bottom: 90, ml: 12, rot: -35, h: 40, w: 2.5, delay: 0.12 },
-            { bottom: 70, ml: -30, rot: 50, h: 28, w: 2, delay: 0.25 },
-            { bottom: 70, ml: 24, rot: -50, h: 28, w: 2, delay: 0.35 },
-            { bottom: 55, ml: -22, rot: 40, h: 20, w: 1.5, delay: 0.45 },
-            { bottom: 55, ml: 18, rot: -40, h: 20, w: 1.5, delay: 0.5 },
+            { bottom: 120, ml: -16, rot: 30, h: 50, w: 8, delay: 0 },
+            { bottom: 120, ml: 8, rot: -30, h: 50, w: 8, delay: 0.1 },
+            { bottom: 100, ml: -28, rot: 48, h: 35, w: 6, delay: 0.2 },
+            { bottom: 100, ml: 22, rot: -48, h: 35, w: 6, delay: 0.28 },
+            { bottom: 85, ml: -18, rot: 38, h: 25, w: 5, delay: 0.38 },
+            { bottom: 85, ml: 14, rot: -38, h: 25, w: 5, delay: 0.44 },
+            { bottom: 70, ml: -24, rot: 55, h: 20, w: 4, delay: 0.5 },
+            { bottom: 70, ml: 20, rot: -55, h: 20, w: 4, delay: 0.55 },
           ].map((b, i) => (
             <motion.div
-              key={`branch-${i}`}
-              className="absolute left-1/2 origin-bottom rounded bg-tree-branch"
-              style={{ bottom: b.bottom, marginLeft: b.ml, transform: `rotate(${b.rot}deg)`, width: b.w * 4 }}
+              key={`br-${i}`}
+              className="absolute left-1/2 origin-bottom rounded z-[1]"
+              style={{
+                bottom: b.bottom,
+                marginLeft: b.ml,
+                transform: `rotate(${b.rot}deg)`,
+                width: b.w,
+                background: "linear-gradient(to top, hsl(25 35% 26%), hsl(25 30% 32%))",
+              }}
               initial={{ height: 0 }}
               animate={{ height: b.h }}
-              transition={{ duration: 0.4, delay: b.delay }}
+              transition={{ duration: 0.5, delay: b.delay }}
             />
-          ))}
-
-          {/* Small leaves on branches */}
-          {leaves.map((leaf, i) => (
-            <motion.span
-              key={`leaf-${i}`}
-              className="absolute text-xs"
-              style={{
-                bottom: 80 + i * 12,
-                left: `calc(50% + ${(i % 2 === 0 ? -1 : 1) * (35 + i * 5)}px)`,
-              }}
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 0.8 }}
-              transition={{ delay: 1.2 + i * 0.1, duration: 0.3, type: "spring" }}
-            >
-              {leaf}
-            </motion.span>
           ))}
         </>
       )}
 
-      {/* Heart - bigger, with glow */}
+      {/* Leaf canopy clusters (heart-shaped) */}
+      {stage >= 2 && leafClusterPositions.map((lc, i) => (
+        <motion.div
+          key={`canopy-${i}`}
+          className="absolute left-1/2 rounded-full z-[2]"
+          style={{
+            bottom: -lc.cy,
+            marginLeft: lc.cx - lc.r,
+            width: lc.r * 2,
+            height: lc.r * 2,
+            background: `radial-gradient(ellipse, hsl(${120 + i * 5} ${45 + i * 2}% ${42 + i * 2}%), hsl(${115 + i * 3} ${40 + i}% ${35 + i}%))`,
+            boxShadow: "inset -4px -4px 8px hsl(120 30% 25% / 0.3), inset 4px 4px 8px hsl(120 50% 55% / 0.2)",
+          }}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 0.95 }}
+          transition={{ delay: 2 + i * 0.08, duration: 0.5, type: "spring", bounce: 0.3 }}
+        />
+      ))}
+
+      {/* Heart on top */}
       {stage >= 2 && (
         <motion.div
-          className="absolute bottom-[105px] left-1/2 -translate-x-1/2"
+          className="absolute left-1/2 -translate-x-1/2 z-[3]"
+          style={{ bottom: 195 }}
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 1, type: "spring", bounce: 0.5 }}
+          transition={{ delay: 2.8, duration: 0.8, type: "spring", bounce: 0.5 }}
         >
-          <span className="text-7xl block relative">
+          <span className="text-5xl block relative drop-shadow-lg">
             💖
             <motion.span
-              className="absolute inset-0 text-7xl blur-sm opacity-50"
-              animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute inset-0 text-5xl blur-sm"
+              animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.15, 1] }}
+              transition={{ duration: 2.5, repeat: Infinity }}
             >
               💖
             </motion.span>
@@ -147,74 +227,74 @@ const HeartTree = ({ onComplete }: HeartTreeProps) => {
         </motion.div>
       )}
 
-      {/* Flowers around the tree */}
-      {stage >= 2 &&
-        flowers.map((flower, i) => (
-          <motion.span
-            key={`flower-${i}`}
-            className="absolute text-lg"
-            style={{
-              bottom: flowerPositions[i].bottom,
-              left: `calc(50% + ${flowerPositions[i].left}px)`,
-            }}
-            initial={{ scale: 0, opacity: 0, rotate: -20 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            transition={{ delay: 2 + i * 0.08, duration: 0.4, type: "spring" }}
-          >
-            {flower}
-          </motion.span>
-        ))}
-
-      {/* Petal burst - more particles, colorful */}
-      {stage >= 3 &&
-        Array.from({ length: 24 }).map((_, i) => {
-          const colors = ["hsl(340 72% 52%)", "hsl(40 85% 55%)", "hsl(340 80% 65%)", "hsl(0 80% 70%)"];
-          return (
-            <motion.div
-              key={`petal-${i}`}
-              className="absolute left-1/2 bottom-[135px] rounded-full"
-              style={{
-                width: 6 + Math.random() * 6,
-                height: 6 + Math.random() * 6,
-                backgroundColor: colors[i % colors.length],
-                opacity: 0.8,
-              }}
-              initial={{ x: 0, y: 0, scale: 0 }}
-              animate={{
-                x: (Math.random() - 0.5) * 260,
-                y: -(Math.random() * 160 + 30),
-                scale: [0, 1.3, 0.5],
-                opacity: [0, 1, 0],
-                rotate: Math.random() * 360,
-              }}
-              transition={{ duration: 2, delay: i * 0.03, ease: "easeOut" }}
-            />
-          );
-        })}
-
-      {/* Floating sparkles after complete */}
-      {stage >= 4 &&
-        Array.from({ length: 8 }).map((_, i) => (
+      {/* Cherry blossom petals falling */}
+      {stage >= 3 && petalData.map((p, i) => {
+        const colors = [
+          "hsl(340 75% 70%)", "hsl(340 60% 80%)", "hsl(350 70% 75%)", "hsl(330 65% 78%)"
+        ];
+        return (
           <motion.div
-            key={`sparkle-${i}`}
-            className="absolute text-xs"
+            key={`petal-${i}`}
+            className="absolute left-1/2 rounded-full z-[4]"
             style={{
-              left: `${20 + Math.random() * 60}%`,
-              bottom: 80 + Math.random() * 120,
+              bottom: 180,
+              width: p.w,
+              height: p.w * 0.7,
+              backgroundColor: colors[p.colorIdx],
             }}
+            initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
             animate={{
-              y: [0, -15, 0],
-              opacity: [0, 1, 0],
+              x: p.x,
+              y: p.y,
+              scale: [0, 1.2, 0.6],
+              opacity: [0, 0.9, 0],
+              rotate: p.rot,
             }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              delay: i * 0.3,
-            }}
-          >
-            ✨
-          </motion.div>
-        ))}
+            transition={{ duration: 2.5, delay: i * 0.04, ease: "easeOut" }}
+          />
+        );
+      })}
+
+      {/* Butterflies */}
+      {stage >= 4 && butterflies.map((b, i) => (
+        <motion.span
+          key={`butterfly-${i}`}
+          className="absolute text-lg z-[5]"
+          style={{ bottom: 160 + i * 40, left: `calc(50% + ${i === 0 ? -60 : 50}px)` }}
+          animate={{
+            x: [0, i === 0 ? 20 : -20, 0],
+            y: [0, -15, 0],
+          }}
+          transition={{ duration: 3 + i, repeat: Infinity, ease: "easeInOut" }}
+        >
+          {b}
+        </motion.span>
+      ))}
+
+      {/* Bird */}
+      {stage >= 4 && (
+        <motion.span
+          className="absolute text-sm z-[5]"
+          style={{ bottom: 220, left: "calc(50% + 35px)" }}
+          animate={{ y: [0, -5, 0], rotate: [0, 5, 0] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          🐦
+        </motion.span>
+      )}
+
+      {/* Floating sparkles */}
+      {stage >= 4 && sparkleData.map((s, i) => (
+        <motion.div
+          key={`sp-${i}`}
+          className="absolute text-xs z-[5]"
+          style={{ left: s.left, bottom: s.bottom }}
+          animate={{ y: [0, -12, 0], opacity: [0, 1, 0] }}
+          transition={{ duration: 2.2, repeat: Infinity, delay: i * 0.25 }}
+        >
+          ✨
+        </motion.div>
+      ))}
     </div>
   );
 };
