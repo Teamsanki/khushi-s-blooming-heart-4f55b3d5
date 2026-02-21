@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import HeartTree from "./HeartTree";
 import SparklingName from "./SparklingName";
+import { supabase } from "@/integrations/supabase/client";
 
 const photos = [
   { id: 1, shayari: "Khushi ki muskaan mein chhupa hai jahan sara 💕", src: "/photos/khushi-1.jpeg" },
@@ -70,7 +71,7 @@ const pageFlipVariants = {
   }),
 };
 
-const BirthdayCard = () => {
+const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
   const [coverOpen, setCoverOpen] = useState(false);
   const [showPages, setShowPages] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -227,7 +228,7 @@ const BirthdayCard = () => {
     }
 
     // Final page
-    return <FinalPage />;
+    return <FinalPage onCardClose={onComplete} />;
   };
 
   return (
@@ -360,8 +361,27 @@ const PhotoCard = ({ photo }: { photo: { src: string; shayari: string } }) => {
   );
 };
 
-const FinalPage = () => {
-  const { displayed, done } = useTypewriter(shayari, 35);
+const FinalPage = ({ onCardClose }: { onCardClose?: () => void }) => {
+  const [aiShayari, setAiShayari] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchShayari = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-shayari", {
+          body: { type: "shayari" },
+        });
+        if (error) throw error;
+        setAiShayari(data.text);
+      } catch {
+        setAiShayari(shayari);
+      }
+      setLoading(false);
+    };
+    fetchShayari();
+  }, []);
+
+  const { displayed, done } = useTypewriter(aiShayari || shayari, 35, !loading);
 
   useEffect(() => {
     if (done) {
@@ -385,28 +405,39 @@ const FinalPage = () => {
         💖
       </motion.div>
 
-      <p className="text-foreground font-medium leading-relaxed text-sm sm:text-base min-h-[120px]">
-        {displayed}
-        {!done && (
-          <span className="inline-block w-0.5 h-4 bg-primary ml-1 animate-pulse" />
-        )}
-      </p>
+      {loading ? (
+        <motion.p
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+          className="text-muted-foreground text-sm"
+        >
+          ✨ AI shayari likh raha hai... ✨
+        </motion.p>
+      ) : (
+        <p className="text-foreground font-medium leading-relaxed text-sm sm:text-base min-h-[120px]">
+          {displayed}
+          {!done && (
+            <span className="inline-block w-0.5 h-4 bg-primary ml-1 animate-pulse" />
+          )}
+        </p>
+      )}
 
       {done && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mt-6"
+          className="mt-4"
         >
           <div className="w-16 h-px bg-border mx-auto mb-4" />
-          <p className="text-xs text-muted-foreground">Made with ❤️</p>
-          <p className="text-sm font-display font-semibold text-foreground mt-1">
-            ~ From Sumit ~
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-4 opacity-60">
-            credit: terasanki
-          </p>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onCardClose}
+            className="px-6 py-2.5 rounded-full bg-primary text-primary-foreground text-sm font-medium shadow-lg"
+          >
+            Card Band Karo 💌
+          </motion.button>
         </motion.div>
       )}
     </div>
