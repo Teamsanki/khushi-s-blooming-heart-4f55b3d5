@@ -1,15 +1,24 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import EmojiGame from "@/components/EmojiGame";
 import MemoryGame from "@/components/MemoryGame";
 import BirthdayCard from "@/components/BirthdayCard";
 import SplashScreen from "@/components/SplashScreen";
+import CountdownScreen from "@/components/CountdownScreen";
+import EndingScreen from "@/components/EndingScreen";
+
+type Phase = "splash" | "countdown" | "game" | "card" | "ending";
+
+const TARGET_DATE = new Date("2026-07-10T00:00:00");
 
 const Index = () => {
-  const [splashDone, setSplashDone] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
+  const [phase, setPhase] = useState<Phase>("splash");
   const [playing, setPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const gameType = useMemo(() => (Math.random() < 0.5 ? "emoji" : "memory"), []);
+
+  const handleCountdownUnlock = useCallback(() => {
+    setPhase("game");
+  }, []);
 
   const toggleMusic = () => {
     if (audioRef.current) {
@@ -24,17 +33,27 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background relative">
-      {!splashDone ? (
-        <SplashScreen onComplete={() => setSplashDone(true)} />
-      ) : !unlocked ? (
-        gameType === "emoji" ? (
-          <EmojiGame onComplete={() => setUnlocked(true)} />
-        ) : (
-          <MemoryGame onComplete={() => setUnlocked(true)} />
-        )
-      ) : (
-        <BirthdayCard />
+      {phase === "splash" && (
+        <SplashScreen onComplete={() => setPhase("countdown")} />
       )}
+
+      {phase === "countdown" && (
+        <CountdownScreen targetDate={TARGET_DATE} onUnlock={handleCountdownUnlock} />
+      )}
+
+      {phase === "game" && (
+        gameType === "emoji" ? (
+          <EmojiGame onComplete={() => setPhase("card")} />
+        ) : (
+          <MemoryGame onComplete={() => setPhase("card")} />
+        )
+      )}
+
+      {phase === "card" && (
+        <BirthdayCard onComplete={() => setPhase("ending")} />
+      )}
+
+      {phase === "ending" && <EndingScreen />}
 
       <audio ref={audioRef} src="/birthday-music.mp3" loop />
       <button
