@@ -119,16 +119,18 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
         ✨ Thoda sabar karo, kuch khaas aane wala hai ✨
       </motion.p>
 
-      {/* Skip button for testing */}
-      <motion.button
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.4 }}
-        whileHover={{ opacity: 1 }}
-        onClick={() => { setIsUnlocked(true); onUnlock(); }}
-        className="fixed bottom-4 left-4 text-[10px] text-muted-foreground border border-muted-foreground/20 rounded-full px-3 py-1 hover:bg-muted transition-colors z-50"
-      >
-        Skip (Testing)
-      </motion.button>
+      {/* Skip button - only in development */}
+      {import.meta.env.DEV && (
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.4 }}
+          whileHover={{ opacity: 1 }}
+          onClick={() => { setIsUnlocked(true); onUnlock(); }}
+          className="fixed bottom-4 left-4 text-[10px] text-muted-foreground border border-muted-foreground/20 rounded-full px-3 py-1 hover:bg-muted transition-colors z-50"
+        >
+          Skip (Testing)
+        </motion.button>
+      )}
     </div>
   );
 };
