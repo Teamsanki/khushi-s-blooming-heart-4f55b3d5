@@ -44,9 +44,10 @@ const Index = () => {
     fadeIntervalsRef.current[key] = interval;
   }, []);
 
-  // Phase transition audio logic
+  // Phase transition audio logic - only runs on phase change, NOT on musicMuted change
   useEffect(() => {
     const prev = prevPhaseRef.current;
+    if (prev === phase) return; // skip if no actual phase change
     prevPhaseRef.current = phase;
     const countdown = countdownAudioRef.current;
     const birthday = birthdayAudioRef.current;
@@ -72,9 +73,8 @@ const Index = () => {
         fadeAudio("birthday", birthday, 0, 1, FADE_DURATION);
       }
     }
-
-    // Birthday music continues through game → card → ending (no restart)
-  }, [phase, fadeAudio, musicMuted]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, fadeAudio]);
 
   // Birthday music loop on end
   useEffect(() => {
@@ -101,8 +101,13 @@ const Index = () => {
     const birthday = birthdayAudioRef.current;
 
     if (newMuted) {
-      if (countdown && !countdown.paused) fadeAudio("countdown", countdown, countdown.volume, 0, 500);
-      if (birthday && !birthday.paused) fadeAudio("birthday", birthday, birthday.volume, 0, 500);
+      // Immediately stop all fades and pause
+      if (countdown) {
+        fadeAudio("countdown", countdown, countdown.volume, 0, 300);
+      }
+      if (birthday) {
+        fadeAudio("birthday", birthday, birthday.volume, 0, 300);
+      }
     } else {
       if (phase === "countdown" && countdown) {
         countdown.volume = 0;
