@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
+import { Progress } from "@/components/ui/progress";
 
 interface CountdownScreenProps {
   targetDate: Date;
@@ -9,6 +10,9 @@ interface CountdownScreenProps {
 const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [isUnlocked, setIsUnlocked] = useState(false);
+
+  // Total duration from now to target for progress calculation
+  const totalDuration = useMemo(() => targetDate.getTime() - Date.now(), [targetDate]);
 
   useEffect(() => {
     const check = () => {
@@ -34,6 +38,12 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
     const interval = setInterval(check, 1000);
     return () => clearInterval(interval);
   }, [targetDate, onUnlock]);
+
+  // Progress percentage (0 to 100) — how much time has passed
+  const remaining = targetDate.getTime() - Date.now();
+  const progressPercent = totalDuration > 0 ? Math.min(100, Math.max(0, ((totalDuration - remaining) / totalDuration) * 100)) : 0;
+  // Blur: starts at 20px, goes to 0 as progress reaches 100
+  const blurAmount = Math.max(0, 20 * (1 - progressPercent / 100));
 
   if (isUnlocked) return null;
 
@@ -102,12 +112,12 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
         </motion.span>
       ))}
 
-      {/* Lock icon with glow */}
+      {/* Khushi's photo - blurred, clears as countdown progresses */}
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", bounce: 0.4 }}
-        className="text-7xl mb-6 relative"
+        className="mb-6 relative"
       >
         <motion.div
           className="absolute inset-0 rounded-full blur-2xl -z-10"
@@ -115,8 +125,30 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
           animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.6, 0.3] }}
           transition={{ duration: 3, repeat: Infinity }}
         />
-        🔒
+        <div
+          className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-primary/40 shadow-xl"
+          style={{ filter: `blur(${blurAmount}px)` }}
+        >
+          <img
+            src="/photos/khushi-1.jpeg"
+            alt="Khushi"
+            className="w-full h-full object-cover"
+          />
+        </div>
+        {blurAmount > 5 && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-5xl drop-shadow-lg">🔒</span>
+          </div>
+        )}
       </motion.div>
+
+      {/* Progress bar */}
+      <div className="w-48 sm:w-56 mb-4">
+        <Progress value={progressPercent} className="h-2.5 bg-muted" />
+        <p className="text-xs text-muted-foreground text-center mt-1.5">
+          {progressPercent.toFixed(1)}% revealed ✨
+        </p>
+      </div>
 
       <motion.h1
         initial={{ opacity: 0, y: 20 }}
