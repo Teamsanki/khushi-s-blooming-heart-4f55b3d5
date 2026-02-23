@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import EmojiGame from "@/components/EmojiGame";
 import MemoryGame from "@/components/MemoryGame";
 import BirthdayCard from "@/components/BirthdayCard";
 import SplashScreen from "@/components/SplashScreen";
@@ -16,7 +15,7 @@ const Index = () => {
   const [musicMuted, setMusicMuted] = useState(false);
   const countdownAudioRef = useRef<HTMLAudioElement>(null);
   const birthdayAudioRef = useRef<HTMLAudioElement>(null);
-  const gameType = useMemo(() => (Math.random() < 0.5 ? "emoji" : "memory"), []);
+  
   const fadeIntervalsRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
   const prevPhaseRef = useRef<Phase>("splash");
   const birthdayStartedRef = useRef(false);
@@ -138,11 +137,7 @@ const Index = () => {
       )}
 
       {phase === "game" && (
-        gameType === "emoji" ? (
-          <EmojiGame onComplete={() => setPhase("card")} />
-        ) : (
-          <MemoryGame onComplete={() => setPhase("card")} />
-        )
+        <MemoryGame onComplete={() => setPhase("card")} />
       )}
 
       {phase === "card" && (
