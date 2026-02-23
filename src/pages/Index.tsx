@@ -46,12 +46,12 @@ const Index = () => {
   // Phase transition audio logic - only runs on phase change, NOT on musicMuted change
   useEffect(() => {
     const prev = prevPhaseRef.current;
-    if (prev === phase) return; // skip if no actual phase change
+    if (prev === phase) return;
     prevPhaseRef.current = phase;
     const countdown = countdownAudioRef.current;
     const birthday = birthdayAudioRef.current;
 
-    // Splash → Countdown: start countdown music
+    // Splash → Countdown: start countdown music (always from beginning)
     if (phase === "countdown" && prev === "splash" && countdown && !musicMuted) {
       countdown.currentTime = 0;
       countdown.volume = 0;
@@ -59,7 +59,7 @@ const Index = () => {
       fadeAudio("countdown", countdown, 0, 1, FADE_DURATION);
     }
 
-    // Countdown → Game: fade out countdown, start birthday
+    // Countdown → Game: fade out countdown, start birthday (always from beginning)
     if (prev === "countdown" && phase === "game") {
       if (countdown && !countdown.paused) {
         fadeAudio("countdown", countdown, countdown.volume, 0, FADE_DURATION);
@@ -74,6 +74,18 @@ const Index = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, fadeAudio]);
+
+  // On mount/refresh: if already in countdown phase, auto-start countdown music
+  useEffect(() => {
+    const countdown = countdownAudioRef.current;
+    if (phase === "countdown" && countdown && !musicMuted) {
+      countdown.currentTime = 0;
+      countdown.volume = 0;
+      countdown.play().catch(() => {});
+      fadeAudio("countdown", countdown, 0, 1, FADE_DURATION);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Birthday music loop on end
   useEffect(() => {
