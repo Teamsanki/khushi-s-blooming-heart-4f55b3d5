@@ -18,6 +18,31 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
     return Math.ceil((targetDate.getTime() - LAUNCH_DATE.getTime()) / (1000 * 60 * 60 * 24));
   }, [targetDate]);
 
+  // Pre-compute sparkle + emoji particle positions ONCE so re-renders (every second) don't jitter them
+  const sparkles = useMemo(
+    () =>
+      Array.from({ length: 30 }).map((_, i) => ({
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        size: 2 + Math.random() * 4,
+        colorIdx: i % 3,
+        duration: 2 + Math.random() * 3,
+        delay: Math.random() * 4,
+      })),
+    []
+  );
+  const emojiParticles = useMemo(
+    () =>
+      Array.from({ length: 15 }).map((_, i) => ({
+        left: 5 + i * 6,
+        top: 10 + (i % 4) * 20,
+        emoji: ["🎂", "🎈", "🎉", "💖", "✨", "🌸", "🎁", "👑"][i % 8],
+        duration: 3 + i * 0.5,
+        delay: i * 0.3,
+      })),
+    []
+  );
+
   useEffect(() => {
     const check = () => {
       const current = Date.now();
@@ -53,13 +78,18 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
   const elapsedToday = now - todayStart;
   const dailyProgress = Math.min(100, Math.max(0, (elapsedToday / msInDay) * 100));
 
-  // Blur: each day removes one layer. Total layers = totalDays
-  // Blur starts at 20px, each day removes (20/totalDays)px
-  const blurPerDay = totalDays > 0 ? 20 / totalDays : 0;
-  const blurAmount = Math.max(0, 20 - daysPassed * blurPerDay - (dailyProgress / 100) * blurPerDay);
+  // Optimized reveal: non-linear quadratic curve — slow start, faster reveal as we approach target
+  // progress = 0 at LAUNCH_DATE, 1 at targetDate
+  const totalMs = targetDate.getTime() - LAUNCH_DATE.getTime();
+  const elapsedMs = Math.max(0, Math.min(totalMs, now - LAUNCH_DATE.getTime()));
+  const linearProgress = totalMs > 0 ? elapsedMs / totalMs : 1;
+  // Ease-in quadratic: blur clears faster near the end
+  const revealCurve = linearProgress * linearProgress;
+  const MAX_BLUR = 20;
+  const blurAmount = Math.max(0, MAX_BLUR * (1 - revealCurve));
 
   // How many layers removed
-  const layersRemoved = daysPassed;
+  const layersRemoved = Math.min(totalDays, Math.max(0, daysPassed));
   const totalLayers = totalDays;
 
   if (isUnlocked) return null;
@@ -87,45 +117,38 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
         style={{ width: "100%", height: "100%" }}
       />
 
-      {/* Sparkle dots */}
-      {Array.from({ length: 30 }).map((_, i) => (
+      {/* Sparkle dots (positions memoized) */}
+      {sparkles.map((s, i) => (
         <motion.div
           key={`sparkle-${i}`}
           className="absolute rounded-full"
           style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            width: `${2 + Math.random() * 4}px`,
-            height: `${2 + Math.random() * 4}px`,
-            background: i % 3 === 0
-              ? "hsl(var(--gold))"
-              : i % 3 === 1
-              ? "hsl(var(--rose-glow))"
-              : "hsl(var(--primary))",
+            left: `${s.left}%`,
+            top: `${s.top}%`,
+            width: `${s.size}px`,
+            height: `${s.size}px`,
+            background:
+              s.colorIdx === 0
+                ? "hsl(var(--gold))"
+                : s.colorIdx === 1
+                ? "hsl(var(--rose-glow))"
+                : "hsl(var(--primary))",
           }}
-          animate={{
-            opacity: [0, 0.8, 0],
-            scale: [0.5, 1.5, 0.5],
-          }}
-          transition={{
-            duration: 2 + Math.random() * 3,
-            repeat: Infinity,
-            delay: Math.random() * 4,
-            ease: "easeInOut",
-          }}
+          animate={{ opacity: [0, 0.8, 0], scale: [0.5, 1.5, 0.5] }}
+          transition={{ duration: s.duration, repeat: Infinity, delay: s.delay, ease: "easeInOut" }}
         />
       ))}
 
       {/* Floating emoji particles */}
-      {Array.from({ length: 15 }).map((_, i) => (
+      {emojiParticles.map((p, i) => (
         <motion.span
           key={i}
           className="absolute text-xl"
-          style={{ left: `${5 + i * 6}%`, top: `${10 + (i % 4) * 20}%` }}
+          style={{ left: `${p.left}%`, top: `${p.top}%` }}
           animate={{ y: [0, -20, 0], opacity: [0.15, 0.5, 0.15], rotate: [0, 10, -10, 0] }}
-          transition={{ duration: 3 + i * 0.5, repeat: Infinity, delay: i * 0.3 }}
+          transition={{ duration: p.duration, repeat: Infinity, delay: p.delay }}
         >
-          {["🎂", "🎈", "🎉", "💖", "✨", "🌸", "🎁", "👑"][i % 8]}
+          {p.emoji}
         </motion.span>
       ))}
 
