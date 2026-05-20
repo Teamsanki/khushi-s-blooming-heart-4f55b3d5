@@ -117,45 +117,38 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
         style={{ width: "100%", height: "100%" }}
       />
 
-      {/* Sparkle dots */}
-      {Array.from({ length: 30 }).map((_, i) => (
+      {/* Sparkle dots (positions memoized) */}
+      {sparkles.map((s, i) => (
         <motion.div
           key={`sparkle-${i}`}
           className="absolute rounded-full"
           style={{
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
-            width: `${2 + Math.random() * 4}px`,
-            height: `${2 + Math.random() * 4}px`,
-            background: i % 3 === 0
-              ? "hsl(var(--gold))"
-              : i % 3 === 1
-              ? "hsl(var(--rose-glow))"
-              : "hsl(var(--primary))",
+            left: `${s.left}%`,
+            top: `${s.top}%`,
+            width: `${s.size}px`,
+            height: `${s.size}px`,
+            background:
+              s.colorIdx === 0
+                ? "hsl(var(--gold))"
+                : s.colorIdx === 1
+                ? "hsl(var(--rose-glow))"
+                : "hsl(var(--primary))",
           }}
-          animate={{
-            opacity: [0, 0.8, 0],
-            scale: [0.5, 1.5, 0.5],
-          }}
-          transition={{
-            duration: 2 + Math.random() * 3,
-            repeat: Infinity,
-            delay: Math.random() * 4,
-            ease: "easeInOut",
-          }}
+          animate={{ opacity: [0, 0.8, 0], scale: [0.5, 1.5, 0.5] }}
+          transition={{ duration: s.duration, repeat: Infinity, delay: s.delay, ease: "easeInOut" }}
         />
       ))}
 
       {/* Floating emoji particles */}
-      {Array.from({ length: 15 }).map((_, i) => (
+      {emojiParticles.map((p, i) => (
         <motion.span
           key={i}
           className="absolute text-xl"
-          style={{ left: `${5 + i * 6}%`, top: `${10 + (i % 4) * 20}%` }}
+          style={{ left: `${p.left}%`, top: `${p.top}%` }}
           animate={{ y: [0, -20, 0], opacity: [0.15, 0.5, 0.15], rotate: [0, 10, -10, 0] }}
-          transition={{ duration: 3 + i * 0.5, repeat: Infinity, delay: i * 0.3 }}
+          transition={{ duration: p.duration, repeat: Infinity, delay: p.delay }}
         >
-          {["🎂", "🎈", "🎉", "💖", "✨", "🌸", "🎁", "👑"][i % 8]}
+          {p.emoji}
         </motion.span>
       ))}
 
