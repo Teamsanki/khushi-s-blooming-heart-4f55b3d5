@@ -1,6 +1,7 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
-const RECIPIENTS = ['grtkhushee@gmail.com', 'schoudhary11256@gmail.com'];
+const PROD_RECIPIENTS = ['grtkhushee@gmail.com', 'schoudhary11256@gmail.com'];
+const TEST_RECIPIENTS = ['griexgamer@gmail.com'];
 
 const buildHtml = () => `<!DOCTYPE html>
 <html lang="en">
@@ -88,10 +89,16 @@ Deno.serve(async (req) => {
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
 
+    let test = false;
+    if (req.method === 'POST') {
+      try { const b = await req.json(); test = !!b?.test; } catch {}
+    }
+    const recipients = test ? TEST_RECIPIENTS : PROD_RECIPIENTS;
+
     const html = buildHtml();
     const results: Array<{ to: string; ok: boolean; data?: unknown; error?: string }> = [];
 
-    for (const to of RECIPIENTS) {
+    for (const to of recipients) {
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
@@ -99,7 +106,7 @@ Deno.serve(async (req) => {
           Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: 'Tera Sanki <onboarding@resend.dev>',
+          from: 'Tera Sanki <khushi@heartable.site>',
           to: [to],
           subject: '🎂 Happy Birthday Khushi — A Special Surprise For You! 🎁✨',
           html,
