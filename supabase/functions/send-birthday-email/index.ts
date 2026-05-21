@@ -3,84 +3,98 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 const PROD_RECIPIENTS = ['grtkhushee@gmail.com', 'schoudhary11256@gmail.com'];
 const TEST_RECIPIENTS = ['griexgamer@gmail.com'];
 
+const SITE_URL = 'https://id-preview--79ebd4d6-688e-48ff-b833-a022260710f6.lovable.app';
+
+// Personal-style HTML (low promo signals) with subtle CSS animations
+// where supported. Plain-text alternative is provided to boost inbox placement.
 const buildHtml = () => `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Happy Birthday Khushi 🎂</title>
+<title>Khushi</title>
+<style>
+  @keyframes float { 0%,100%{ transform: translateY(0) } 50%{ transform: translateY(-6px) } }
+  @keyframes pop   { 0%{ transform: scale(.9); opacity:.6 } 100%{ transform: scale(1); opacity:1 } }
+  @keyframes spin  { 0%{ transform: rotate(-6deg) } 50%{ transform: rotate(6deg) } 100%{ transform: rotate(-6deg) } }
+  @keyframes beat  { 0%,100%{ transform: scale(1) } 25%{ transform: scale(1.15) } 50%{ transform: scale(1) } 75%{ transform: scale(1.1) } }
+  .float { animation: float 3s ease-in-out infinite; display:inline-block; }
+  .spin  { animation: spin  3.5s ease-in-out infinite; display:inline-block; transform-origin: 50% 80%; }
+  .beat  { animation: beat  1.6s ease-in-out infinite; display:inline-block; }
+  .pop   { animation: pop   .9s ease-out both; display:inline-block; }
+  a.soft { color:#b14a78; text-decoration: none; border-bottom: 1px dotted #b14a78; }
+</style>
 </head>
-<body style="margin:0;padding:0;background:#fff5f8;font-family:'Segoe UI',Arial,sans-serif;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,#ffe0ec 0%,#fff5e6 50%,#ffe0ec 100%);padding:40px 16px;">
+<body style="margin:0;padding:0;background:#faf7f3;font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#2b2b2b;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">Bhai ne kuch likha hai tere liye — chhota sa note ❤</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="padding:28px 16px;">
   <tr><td align="center">
-    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:24px;box-shadow:0 20px 60px rgba(232,93,138,0.25);overflow:hidden;">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;background:#ffffff;border:1px solid #efe7df;border-radius:14px;">
 
-      <!-- Header banner -->
-      <tr><td align="center" style="background:linear-gradient(135deg,#ff6b9d 0%,#ffa07a 50%,#ffd93d 100%);padding:48px 24px 32px;position:relative;">
-        <div style="font-size:72px;line-height:1;animation:bounce 2s infinite;">🎁</div>
-        <h1 style="margin:16px 0 8px;color:#fff;font-size:36px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 10px rgba(0,0,0,0.15);">
-          Happy Birthday Khushi! 🎂
-        </h1>
-        <p style="margin:0;color:#fff;font-size:16px;opacity:0.95;">✨ 10 July 2026 ✨</p>
-      </td></tr>
-
-      <!-- Floating emojis row -->
-      <tr><td align="center" style="background:#fff;padding:20px 16px 0;">
-        <div style="font-size:28px;letter-spacing:8px;">🎈 💖 🌸 🦋 💝 🎀 ✨</div>
-      </td></tr>
-
-      <!-- Main message -->
-      <tr><td style="padding:32px 40px;">
-        <h2 style="margin:0 0 16px;color:#e85d8a;font-size:24px;font-weight:700;text-align:center;">
-          Meri Pyari Behna 💕
+      <tr><td style="padding:28px 32px 8px;">
+        <p style="margin:0;color:#8a8a8a;font-size:13px;">10 July 2026</p>
+        <h2 style="margin:6px 0 0;font-size:22px;font-weight:600;color:#222;">
+          Meri pyari behna <span class="beat" style="color:#e85d8a;">❤</span>
         </h2>
-        <p style="margin:0 0 16px;color:#444;font-size:16px;line-height:1.7;text-align:center;">
-          Aaj tera special day hai, aur duniya ki sabse pyari pookie ko bhaut saara pyaar aur dher saari wishes 🌷
+      </td></tr>
+
+      <tr><td align="center" style="padding:14px 32px 4px;">
+        <span class="spin"  style="font-size:46px;">🎁</span>
+        <span class="float" style="font-size:34px;margin:0 6px;">🎈</span>
+        <span class="pop"   style="font-size:40px;">🌷</span>
+      </td></tr>
+
+      <tr><td style="padding:18px 32px 4px;font-size:15.5px;line-height:1.75;color:#333;">
+        <p style="margin:0 0 12px;">Khushi,</p>
+        <p style="margin:0 0 12px;">
+          Aaj tera din hai. Bas itna kehna tha — tu meri zindagi ki sabse pyari khushi hai.
+          Jis din tu hasti hai, ghar pura chamak jata hai. ✨
         </p>
-        <p style="margin:0 0 16px;color:#555;font-size:15px;line-height:1.8;text-align:center;font-style:italic;">
-          "Tu meri zindagi ki sabse khoobsurat khushi hai 🌸<br/>
-          Tere bina har din adhura sa lagta hai 💫<br/>
-          God bless you with infinite happiness, success aur pyaar 💖<br/>
-          Tu hamesha muskurati rahe, chamakti rahe aur khush rahe ✨"
+        <p style="margin:0 0 12px;">
+          Tere liye ek chhota sa surprise banaya hai — saare purane photos, kuch shayari, ek
+          chhota sa game, aur bahut saara pyaar. Aaram se kholna, akele baith ke dekhna.
+        </p>
+        <p style="margin:0 0 12px;">
+          God tujhe duniya bhar ki khushiyan de. Jo bhi chahti hai, sab mile.
+          Hamesha muskurati reh — ye smile mat kho dena kabhi. 🌸
+        </p>
+        <p style="margin:18px 0 4px;">
+          Tera surprise yahan hai:<br/>
+          <a class="soft" href="${SITE_URL}">${SITE_URL.replace('https://','')}</a>
         </p>
       </td></tr>
 
-      <!-- Gift box card -->
-      <tr><td align="center" style="padding:8px 40px 32px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="background:linear-gradient(135deg,#fff0f5 0%,#fff8e7 100%);border-radius:20px;padding:28px 24px;border:2px dashed #ff6b9d;width:100%;">
-          <tr><td align="center">
-            <div style="font-size:64px;line-height:1;margin-bottom:8px;">🎁✨</div>
-            <p style="margin:8px 0 0;color:#e85d8a;font-size:18px;font-weight:700;">
-              Tera Surprise Ready Hai! 🎉
-            </p>
-            <p style="margin:8px 0 0;color:#777;font-size:14px;">
-              Bhai ne tere liye kuch special banaya hai 💝
-            </p>
-          </td></tr>
-        </table>
-      </td></tr>
-
-      <!-- CTA Button -->
-      <tr><td align="center" style="padding:0 40px 40px;">
-        <a href="https://id-preview--79ebd4d6-688e-48ff-b833-a022260710f6.lovable.app"
-           style="display:inline-block;background:linear-gradient(135deg,#ff6b9d 0%,#ff8e53 100%);color:#fff;text-decoration:none;padding:16px 40px;border-radius:50px;font-size:16px;font-weight:700;box-shadow:0 8px 20px rgba(255,107,157,0.4);letter-spacing:0.5px;">
-          🌸 Open Your Surprise 🌸
-        </a>
-      </td></tr>
-
-      <!-- Footer -->
-      <tr><td align="center" style="background:linear-gradient(135deg,#fff0f5 0%,#fff8e7 100%);padding:24px;">
-        <p style="margin:0 0 6px;color:#999;font-size:13px;">made with 💖 by</p>
-        <p style="margin:0;color:#e85d8a;font-size:15px;font-weight:700;">Sumit urf Tera Sanki 😎</p>
-        <div style="margin-top:12px;font-size:20px;letter-spacing:6px;">🌷 💕 🦋 💝 🌸</div>
+      <tr><td style="padding:22px 32px 28px;font-size:14px;color:#555;">
+        Bahut pyaar,<br/>
+        — Bhai <span class="float" style="display:inline-block;">🫶</span>
       </td></tr>
 
     </table>
-    <p style="margin:20px 0 0;color:#bbb;font-size:11px;">This is an automated birthday surprise 🎂</p>
+    <p style="margin:14px 0 0;color:#b8b8b8;font-size:11px;">Sirf tere liye • reply kar dena padhne ke baad ❤</p>
   </td></tr>
 </table>
 </body>
 </html>`;
+
+const buildText = () => `Meri pyari behna ❤
+
+10 July 2026
+
+Khushi,
+
+Aaj tera din hai. Bas itna kehna tha — tu meri zindagi ki sabse pyari khushi hai.
+Jis din tu hasti hai, ghar pura chamak jata hai.
+
+Tere liye ek chhota sa surprise banaya hai — purane photos, kuch shayari, ek
+chhota sa game, aur bahut saara pyaar. Aaram se kholna.
+
+God tujhe duniya bhar ki khushiyan de. Hamesha muskurati reh.
+
+Tera surprise: ${SITE_URL}
+
+Bahut pyaar,
+— Bhai
+`;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -106,10 +120,15 @@ Deno.serve(async (req) => {
           Authorization: `Bearer ${RESEND_API_KEY}`,
         },
         body: JSON.stringify({
-          from: 'Tera Sanki <khushi@heartable.site>',
+          from: 'Sumit (Bhai) <bhai@heartable.site>',
           to: [to],
-          subject: '🎂 Happy Birthday Khushi — A Special Surprise For You! 🎁✨',
+          reply_to: 'schoudhary11256@gmail.com',
+          subject: 'Khushi, ek chhota sa note tere liye',
           html,
+          text: buildText(),
+          headers: {
+            'List-Unsubscribe': '<mailto:schoudhary11256@gmail.com?subject=unsubscribe>',
+          },
         }),
       });
       const data = await r.json();
