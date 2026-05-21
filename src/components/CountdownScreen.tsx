@@ -78,19 +78,13 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
   const elapsedToday = now - todayStart;
   const dailyProgress = Math.min(100, Math.max(0, (elapsedToday / msInDay) * 100));
 
-  // Optimized reveal: non-linear quadratic curve — slow start, faster reveal as we approach target
-  // progress = 0 at LAUNCH_DATE, 1 at targetDate
-  const totalMs = targetDate.getTime() - LAUNCH_DATE.getTime();
-  const elapsedMs = Math.max(0, Math.min(totalMs, now - LAUNCH_DATE.getTime()));
-  const linearProgress = totalMs > 0 ? elapsedMs / totalMs : 1;
-  // Ease-in quadratic: blur clears faster near the end
-  const revealCurve = linearProgress * linearProgress;
-  const MAX_BLUR = 20;
-  const blurAmount = Math.max(0, MAX_BLUR * (1 - revealCurve));
-
-  // How many layers removed
-  const layersRemoved = Math.min(totalDays, Math.max(0, daysPassed));
+  // Per-day layer reveal: one blur layer hates per day passed since LAUNCH_DATE.
+  // Blur stays constant within a day — only changes when the date rolls over.
   const totalLayers = totalDays;
+  const layersRemoved = Math.min(totalLayers, Math.max(0, daysPassed));
+  const MAX_BLUR = 20;
+  const layersLeft = Math.max(0, totalLayers - layersRemoved);
+  const blurAmount = totalLayers > 0 ? (MAX_BLUR * layersLeft) / totalLayers : 0;
 
   if (isUnlocked) return null;
 
