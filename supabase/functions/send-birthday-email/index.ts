@@ -122,20 +122,78 @@ with bahut saara pyaar,
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  // Tracking pixel: GET ?pixel=1&to=<email>
+  const url = new URL(req.url);
+  if (req.method === 'GET' && url.searchParams.get('pixel') === '1') {
+    const to = (url.searchParams.get('to') || '').toLowerCase().trim();
+    if (to) {
+      try {
+        await supabase.from('email_reads').upsert(
+          { email: to, opened_at: new Date().toISOString(), open_count: 1 },
+          { onConflict: 'email' }
+        );
+        // bump count if existed
+        await supabase.rpc as unknown; // noop placeholder
+      } catch (_) { /* ignore */ }
+    }
+    return new Response(PIXEL_BYTES, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/gif',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+      },
+    });
+  }
+
   try {
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
 
     let test = false;
+    let resendIfUnread = false;
+    let notBeforeUtc: string | null = null;
     if (req.method === 'POST') {
-      try { const b = await req.json(); test = !!b?.test; } catch {}
+      try {
+        const b = await req.json();
+        test = !!b?.test;
+        resendIfUnread = !!b?.resend_if_unread;
+        notBeforeUtc = b?.not_before_utc || null;
+      } catch {}
     }
-    const recipients = test ? TEST_RECIPIENTS : PROD_RECIPIENTS;
 
-    const html = buildHtml();
+    // Hard time-gate so accidental early triggers don't fire
+    if (notBeforeUtc) {
+      const nb = new Date(notBeforeUtc).getTime();
+      if (Date.now() < nb) {
+        return new Response(JSON.stringify({ skipped: 'before not_before_utc', not_before_utc: notBeforeUtc }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    let recipients = test ? TEST_RECIPIENTS : PROD_RECIPIENTS;
+
+    // If resend-mode, skip anyone who already opened the email
+    if (resendIfUnread && recipients.length) {
+      const { data: reads } = await supabase
+        .from('email_reads')
+        .select('email')
+        .in('email', recipients.map((e) => e.toLowerCase()));
+      const openedSet = new Set((reads || []).map((r: { email: string }) => r.email.toLowerCase()));
+      recipients = recipients.filter((e) => !openedSet.has(e.toLowerCase()));
+      if (recipients.length === 0) {
+        return new Response(JSON.stringify({ skipped: 'all recipients already opened', sent_at: new Date().toISOString() }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const results: Array<{ to: string; ok: boolean; data?: unknown; error?: string }> = [];
 
     for (const to of recipients) {
+      const trackingUrl = `${FUNCTION_PUBLIC_URL}?pixel=1&to=${encodeURIComponent(to)}&t=${Date.now()}`;
+      const html = buildHtml(trackingUrl);
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
