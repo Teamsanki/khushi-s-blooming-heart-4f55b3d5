@@ -14,7 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      email_reads: {
+        Row: {
+          email: string
+          open_count: number
+          opened_at: string
+        }
+        Insert: {
+          email: string
+          open_count?: number
+          opened_at?: string
+        }
+        Update: {
+          email?: string
+          open_count?: number
+          opened_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
