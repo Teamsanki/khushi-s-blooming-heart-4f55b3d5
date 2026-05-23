@@ -1,10 +1,24 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const PROD_RECIPIENTS = ['grtkhushee@gmail.com', 'schoudhary11256@gmail.com'];
 const TEST_RECIPIENTS = ['griexgamer@gmail.com'];
 
 const SITE_URL = 'https://khushi-birthday-orpin.vercel.app/';
 const CAKE_GIF = 'https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExMm56eHNqODd2MHByYmNhOWg1MGxuYm4zcmo0dWduMGFleWRpYmU2ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eedT0Gs9T8nIHfIvXy/giphy.gif';
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const FUNCTION_PUBLIC_URL = `${SUPABASE_URL}/functions/v1/send-birthday-email`;
+
+const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+// 1x1 transparent gif
+const PIXEL_BYTES = Uint8Array.from([
+  0x47,0x49,0x46,0x38,0x39,0x61,0x01,0x00,0x01,0x00,0x80,0x00,0x00,0xff,0xff,0xff,
+  0x00,0x00,0x00,0x21,0xf9,0x04,0x01,0x00,0x00,0x00,0x00,0x2c,0x00,0x00,0x00,0x00,
+  0x01,0x00,0x01,0x00,0x00,0x02,0x02,0x44,0x01,0x00,0x3b,
+]);
 
 // Personal-style HTML (low promo signals) with subtle CSS animations
 // where supported. Plain-text alternative is provided to boost inbox placement.
