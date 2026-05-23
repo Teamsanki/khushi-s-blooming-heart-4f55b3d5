@@ -22,7 +22,7 @@ const PIXEL_BYTES = Uint8Array.from([
 
 // Personal-style HTML (low promo signals) with subtle CSS animations
 // where supported. Plain-text alternative is provided to boost inbox placement.
-const buildHtml = () => `<!DOCTYPE html>
+const buildHtml = (trackingUrl: string) => `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -98,6 +98,7 @@ const buildHtml = () => `<!DOCTYPE html>
     <p style="margin:14px 0 0;color:#c8a8b8;font-size:11px;">sirf tere liye • reply kar dena pookie 💌</p>
   </td></tr>
 </table>
+<img src="${trackingUrl}" width="1" height="1" alt="" style="display:none;border:0;outline:none;" />
 </body>
 </html>`;
 
