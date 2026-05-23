@@ -132,8 +132,6 @@ Deno.serve(async (req) => {
           { email: to, opened_at: new Date().toISOString(), open_count: 1 },
           { onConflict: 'email' }
         );
-        // bump count if existed
-        await supabase.rpc as unknown; // noop placeholder
       } catch (_) { /* ignore */ }
     }
     return new Response(PIXEL_BYTES, {
