@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const PROD_RECIPIENTS = ['grtkhushee@gmail.com', 'schoudhary11256@gmail.com'];
 const TEST_RECIPIENTS = ['griexgamer@gmail.com'];
@@ -6,9 +7,22 @@ const TEST_RECIPIENTS = ['griexgamer@gmail.com'];
 const SITE_URL = 'https://khushi-birthday-orpin.vercel.app/';
 const CAKE_GIF = 'https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExMm56eHNqODd2MHByYmNhOWg1MGxuYm4zcmo0dWduMGFleWRpYmU2ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eedT0Gs9T8nIHfIvXy/giphy.gif';
 
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const FUNCTION_PUBLIC_URL = `${SUPABASE_URL}/functions/v1/send-birthday-email`;
+
+const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+// 1x1 transparent gif
+const PIXEL_BYTES = Uint8Array.from([
+  0x47,0x49,0x46,0x38,0x39,0x61,0x01,0x00,0x01,0x00,0x80,0x00,0x00,0xff,0xff,0xff,
+  0x00,0x00,0x00,0x21,0xf9,0x04,0x01,0x00,0x00,0x00,0x00,0x2c,0x00,0x00,0x00,0x00,
+  0x01,0x00,0x01,0x00,0x00,0x02,0x02,0x44,0x01,0x00,0x3b,
+]);
+
 // Personal-style HTML (low promo signals) with subtle CSS animations
 // where supported. Plain-text alternative is provided to boost inbox placement.
-const buildHtml = () => `<!DOCTYPE html>
+const buildHtml = (trackingUrl: string) => `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -84,6 +98,7 @@ const buildHtml = () => `<!DOCTYPE html>
     <p style="margin:14px 0 0;color:#c8a8b8;font-size:11px;">sirf tere liye • reply kar dena pookie 💌</p>
   </td></tr>
 </table>
+<img src="${trackingUrl}" width="1" height="1" alt="" style="display:none;border:0;outline:none;" />
 </body>
 </html>`;
 
@@ -107,20 +122,76 @@ with bahut saara pyaar,
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  // Tracking pixel: GET ?pixel=1&to=<email>
+  const url = new URL(req.url);
+  if (req.method === 'GET' && url.searchParams.get('pixel') === '1') {
+    const to = (url.searchParams.get('to') || '').toLowerCase().trim();
+    if (to) {
+      try {
+        await supabase.from('email_reads').upsert(
+          { email: to, opened_at: new Date().toISOString(), open_count: 1 },
+          { onConflict: 'email' }
+        );
+      } catch (_) { /* ignore */ }
+    }
+    return new Response(PIXEL_BYTES, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/gif',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+      },
+    });
+  }
+
   try {
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
     if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY not configured');
 
     let test = false;
+    let resendIfUnread = false;
+    let notBeforeUtc: string | null = null;
     if (req.method === 'POST') {
-      try { const b = await req.json(); test = !!b?.test; } catch {}
+      try {
+        const b = await req.json();
+        test = !!b?.test;
+        resendIfUnread = !!b?.resend_if_unread;
+        notBeforeUtc = b?.not_before_utc || null;
+      } catch {}
     }
-    const recipients = test ? TEST_RECIPIENTS : PROD_RECIPIENTS;
 
-    const html = buildHtml();
+    // Hard time-gate so accidental early triggers don't fire
+    if (notBeforeUtc) {
+      const nb = new Date(notBeforeUtc).getTime();
+      if (Date.now() < nb) {
+        return new Response(JSON.stringify({ skipped: 'before not_before_utc', not_before_utc: notBeforeUtc }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    let recipients = test ? TEST_RECIPIENTS : PROD_RECIPIENTS;
+
+    // If resend-mode, skip anyone who already opened the email
+    if (resendIfUnread && recipients.length) {
+      const { data: reads } = await supabase
+        .from('email_reads')
+        .select('email')
+        .in('email', recipients.map((e) => e.toLowerCase()));
+      const openedSet = new Set((reads || []).map((r: { email: string }) => r.email.toLowerCase()));
+      recipients = recipients.filter((e) => !openedSet.has(e.toLowerCase()));
+      if (recipients.length === 0) {
+        return new Response(JSON.stringify({ skipped: 'all recipients already opened', sent_at: new Date().toISOString() }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const results: Array<{ to: string; ok: boolean; data?: unknown; error?: string }> = [];
 
     for (const to of recipients) {
+      const trackingUrl = `${FUNCTION_PUBLIC_URL}?pixel=1&to=${encodeURIComponent(to)}&t=${Date.now()}`;
+      const html = buildHtml(trackingUrl);
       const r = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
