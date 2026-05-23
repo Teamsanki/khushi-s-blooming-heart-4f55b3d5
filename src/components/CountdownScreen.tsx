@@ -10,7 +10,7 @@ interface CountdownScreenProps {
 const LAUNCH_DATE = new Date("2025-06-23T00:00:00");
 
 const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, ms: 0 });
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [now, setNow] = useState(Date.now());
 
@@ -60,12 +60,16 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
         hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
         minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
         seconds: Math.floor((diff % (1000 * 60)) / 1000),
+        ms: Math.floor((diff % 1000) / 10),
       });
     };
 
     check();
-    const interval = setInterval(check, 1000);
-    return () => clearInterval(interval);
+    // Smooth ~60fps ticker for realistic feel
+    let raf = 0;
+    const loop = () => { check(); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
   }, [targetDate, onUnlock]);
 
   // Days passed since launch
