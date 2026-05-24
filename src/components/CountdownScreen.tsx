@@ -99,7 +99,7 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
       {/* Animated gradient background */}
       <motion.div
         className="absolute inset-0 -z-10"
@@ -149,13 +149,12 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
         </motion.span>
       ))}
 
-      <div className="relative z-10 w-full max-w-2xl flex flex-col items-center text-center">
       {/* Khushi's photo - blurred, clears as days pass */}
       <motion.div
         initial={{ scale: 0, rotate: -10 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ type: "spring", bounce: 0.4, duration: 0.8 }}
-        className="mb-10 relative"
+        className="mb-3 relative"
       >
         <motion.div
           className="absolute -inset-3 rounded-full -z-10"
@@ -172,7 +171,7 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
           transition={{ duration: 3, repeat: Infinity }}
         />
         <div
-          className="w-36 h-36 sm:w-44 sm:h-44 rounded-full overflow-hidden border-4 border-white shadow-2xl ring-1 ring-black/5 transition-all duration-1000"
+          className="w-36 h-36 sm:w-44 sm:h-44 rounded-full overflow-hidden border-[3px] border-primary/50 shadow-2xl transition-all duration-1000"
           style={{ filter: `blur(${blurAmount}px)` }}
         >
           <img
@@ -197,103 +196,121 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="w-full max-w-sm mb-10 space-y-6"
+        className="w-64 sm:w-80 mb-5"
       >
-        {/* Memory Reveal */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-end px-1">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/80">
-              Memory Reveal
-            </span>
-            <span className="text-[10px] font-bold tracking-widest text-primary tabular-nums">
-              {totalLayers > 0 ? Math.round((layersRemoved / totalLayers) * 100) : 0}%
-            </span>
-          </div>
-          <div className="h-1 w-full rounded-full overflow-hidden bg-primary/10">
-            <motion.div
-              className="h-full rounded-full"
-              style={{
-                background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--rose-glow)))",
-                boxShadow: "0 0 8px hsl(var(--primary) / 0.5)",
-              }}
-              initial={false}
-              animate={{ width: `${totalLayers > 0 ? (layersRemoved / totalLayers) * 100 : 0}%` }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-            />
-          </div>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-[11px] font-medium text-muted-foreground flex items-center gap-1">
+            🧊 Blur Layers
+          </span>
+          <span className="text-[11px] font-bold text-primary">
+            {layersRemoved}/{totalLayers}
+          </span>
         </div>
 
-        {/* Today's Journey */}
-        <div className="space-y-2">
-          <div className="flex justify-between items-end px-1">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[hsl(var(--gold))]/90">
-              Today's Journey
-            </span>
-            <span className="text-[10px] font-bold tracking-widest text-[hsl(var(--gold))] tabular-nums">
+        {/* Segmented bar — one segment per day */}
+        <div className="flex gap-[2px] h-2.5 rounded-full overflow-hidden bg-muted/40 p-[2px]">
+          {Array.from({ length: Math.min(totalLayers, 60) }).map((_, i) => {
+            const scaled = Math.floor((i / Math.min(totalLayers, 60)) * totalLayers);
+            const revealed = scaled < layersRemoved;
+            return (
+              <motion.div
+                key={i}
+                className="flex-1 rounded-full"
+                initial={false}
+                animate={{
+                  background: revealed
+                    ? "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--gold)))"
+                    : "hsl(var(--muted-foreground) / 0.18)",
+                  opacity: revealed ? 1 : 0.6,
+                }}
+                transition={{ duration: 0.4, delay: i * 0.01 }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Today's smooth progress ring/bar */}
+        <div className="mt-3">
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-[10px] font-medium text-muted-foreground/80">⏳ Aaj ka din</span>
+            <span className="text-[10px] font-bold text-primary tabular-nums">
               {dailyProgress.toFixed(2)}%
             </span>
           </div>
-          <div className="h-1 w-full rounded-full overflow-hidden bg-[hsl(var(--gold))]/10">
+          <div className="relative h-1.5 rounded-full bg-muted/40 overflow-hidden">
             <div
-              className="h-full rounded-full transition-[width] duration-300 ease-linear"
+              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-300 ease-linear"
               style={{
                 width: `${dailyProgress}%`,
-                background: "linear-gradient(90deg, hsl(var(--gold)), hsl(var(--rose-glow)))",
-                boxShadow: "0 0 8px hsl(var(--gold) / 0.5)",
+                background:
+                  "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--rose-glow)), hsl(var(--gold)))",
+                boxShadow: "0 0 12px hsl(var(--primary) / 0.6)",
               }}
             />
+            <motion.div
+              className="absolute inset-y-0 w-8 rounded-full pointer-events-none"
+              style={{
+                left: `calc(${dailyProgress}% - 16px)`,
+                background:
+                  "linear-gradient(90deg, transparent, hsl(var(--gold) / 0.9), transparent)",
+              }}
+              animate={{ opacity: [0.4, 1, 0.4] }}
+              transition={{ duration: 1.4, repeat: Infinity }}
+            />
           </div>
-          <p className="text-[11px] italic text-muted-foreground/70 font-medium pt-1">
-            Har din ek layer hategi — slowly slowly clear ho rha hai ✨
-          </p>
         </div>
+        <p className="text-[10px] text-muted-foreground/60 text-center mt-2">
+          Har din ek layer hategi — slowly slowly clear ho rha hai ✨
+        </p>
       </motion.div>
 
-      {/* Main Message */}
-      <div className="space-y-4 mb-10">
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-4xl sm:text-5xl md:text-6xl font-display font-bold text-foreground tracking-tight leading-tight"
-        >
-          Surprise{" "}
-          <span
-            className="italic bg-clip-text text-transparent"
-            style={{
-              backgroundImage: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--gold)))",
-            }}
-          >
-            Abhi Lock Hai!
-          </span>
-        </motion.h1>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="inline-block px-6 py-2 rounded-full bg-white/40 dark:bg-white/5 backdrop-blur-md border border-white/60 dark:border-white/10 shadow-sm"
-        >
-          <p className="text-primary font-semibold text-xs sm:text-sm tracking-wide">
-            10 July 2026 ko khulega yeh surprise ❤️
-          </p>
-        </motion.div>
-      </div>
+      <motion.h1
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-2 text-center sparkle-text"
+      >
+        Surprise Abhi Lock Hai! 🎂
+      </motion.h1>
+
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+        className="text-muted-foreground text-sm mb-6 text-center"
+      >
+        10 July 2026 ko khulega yeh surprise 💖
+      </motion.p>
 
       {/* Countdown blocks */}
-      <div className="grid grid-cols-3 md:grid-cols-5 gap-3 md:gap-4 w-full mb-10">
+      <div className="flex gap-3 sm:gap-4">
         {blocks.map((block, i) => (
           <motion.div
             key={block.label}
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 + i * 0.1 }}
-            className="group bg-white/40 dark:bg-white/5 backdrop-blur-lg border border-white/60 dark:border-white/10 p-4 md:p-6 rounded-3xl transition-all duration-300 hover:scale-105 hover:bg-white/60"
+            className="flex flex-col items-center"
           >
-            <div className="text-3xl md:text-4xl font-display font-bold text-foreground tabular-nums mb-1">
-              {String(block.value).padStart(2, "0")}
-            </div>
-            <div className="text-[10px] font-bold text-primary/70 uppercase tracking-widest">
-              {block.label}
-            </div>
+            <motion.div
+              className="w-[4.2rem] h-[4.2rem] sm:w-[5.2rem] sm:h-[5.2rem] rounded-2xl flex flex-col items-center justify-center shadow-lg border border-primary/20 relative overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--rose-glow)))",
+              }}
+              whileHover={{ scale: 1.08, rotate: [0, -2, 2, 0] }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <motion.div
+                className="absolute inset-0 opacity-20"
+                style={{ background: "linear-gradient(45deg, transparent 30%, hsl(var(--gold) / 0.5) 50%, transparent 70%)" }}
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ duration: 3, repeat: Infinity, delay: i * 0.5 }}
+              />
+              <span className="text-2xl sm:text-3xl font-bold text-primary-foreground font-display relative z-10 leading-none tabular-nums">
+                {String(block.value).padStart(2, "0")}
+              </span>
+              <span className="text-[9px] text-primary-foreground/60 relative z-10 mt-0.5">{block.emoji}</span>
+            </motion.div>
+            <p className="text-[11px] text-muted-foreground mt-2 font-medium">{block.label}</p>
           </motion.div>
         ))}
         {/* Milliseconds ticker — adds realism */}
@@ -301,57 +318,51 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.85 }}
-          className="col-span-3 md:col-span-1 p-4 md:p-6 rounded-3xl shadow-lg transition-all duration-300 hover:scale-105"
-          style={{
-            background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--gold)))",
-            boxShadow: "0 10px 30px hsl(var(--primary) / 0.25)",
-          }}
+          className="flex flex-col items-center"
         >
-          <div className="text-3xl md:text-4xl font-display font-bold text-primary-foreground tabular-nums mb-1">
-            {String(timeLeft.ms).padStart(2, "0")}
+          <div
+            className="w-[4.2rem] h-[4.2rem] sm:w-[5.2rem] sm:h-[5.2rem] rounded-2xl flex flex-col items-center justify-center shadow-lg border border-primary/20 relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg, hsl(var(--gold)), hsl(var(--rose-glow)))" }}
+          >
+            <span className="text-2xl sm:text-3xl font-bold text-primary-foreground font-display relative z-10 leading-none tabular-nums">
+              {String(timeLeft.ms).padStart(2, "0")}
+            </span>
+            <span className="text-[9px] text-primary-foreground/60 relative z-10 mt-0.5">⚡</span>
           </div>
-          <div className="text-[10px] font-bold text-primary-foreground/80 uppercase tracking-widest">
-            ms
-          </div>
+          <p className="text-[11px] text-muted-foreground mt-2 font-medium">ms</p>
         </motion.div>
       </div>
 
-      {/* Motivational caption */}
-      <motion.div
+      {/* Motivational text */}
+      <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
-        className="flex items-center gap-3 text-muted-foreground/80 font-medium text-xs sm:text-sm"
+        className="text-muted-foreground/60 text-xs mt-6 text-center max-w-xs"
       >
-        <span className="h-px w-8 bg-primary/20" />
-        <span>
-          {daysRemaining > 30
-            ? "Thoda sabar karo, kuch khaas aane wala hai"
-            : daysRemaining > 7
-            ? "Bas kuch din aur... excitement badh rhi hai"
-            : daysRemaining > 1
-            ? "Almost there! Countdown tez ho rha hai"
-            : "Kal hai woh din! Ready ho jao"}
-        </span>
-        <span className="h-px w-8 bg-primary/20" />
-      </motion.div>
+        {daysRemaining > 30
+          ? "✨ Thoda sabar karo, kuch khaas aane wala hai ✨"
+          : daysRemaining > 7
+          ? "🌟 Bas kuch din aur... excitement badh rhi hai!"
+          : daysRemaining > 1
+          ? "🔥 Almost there! Countdown tez ho rha hai..."
+          : "💖 Kal hai woh din! Ready ho jao! 🎉"}
+      </motion.p>
 
       {/* Credit */}
-      <motion.footer
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.5 }}
-        className="mt-12 flex flex-col items-center gap-2 opacity-60 hover:opacity-100 transition-opacity"
+        className="mt-8 text-center"
       >
-        <span className="text-[9px] uppercase tracking-[0.4em] text-muted-foreground/60">
-          crafted with love by
-        </span>
-        <div className="flex items-center gap-2 text-xs font-display font-bold text-foreground/70 tracking-wider uppercase">
-          Sumit urf Tera Sanki
-          <span className="px-1.5 py-0.5 rounded-md bg-muted text-[10px]">😎</span>
-        </div>
-      </motion.footer>
-      </div>
+        <p className="text-[10px] text-muted-foreground/40">
+          made with 💖 by
+        </p>
+        <p className="text-[11px] font-display font-semibold text-muted-foreground/50 tracking-wide">
+          Sumit urf Tera Sanki 😎
+        </p>
+      </motion.div>
     </div>
   );
 };
