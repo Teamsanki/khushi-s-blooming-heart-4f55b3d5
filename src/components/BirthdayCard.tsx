@@ -317,6 +317,32 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
 // Photo card component with fade-in shayari
 const PhotoCard = ({ photo }: { photo: { src: string; shayari: string } }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [aiText, setAiText] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setAiText("");
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("generate-shayari", {
+          body: { type: "photo" },
+        });
+        if (error) throw error;
+        if (!cancelled) setAiText((data?.text || "").trim() || photo.shayari);
+      } catch {
+        if (!cancelled) setAiText(photo.shayari);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [photo.src]);
+
+  const { displayed, done } = useTypewriter(aiText, 35, imageLoaded && !loading && !!aiText);
 
   return (
     <div className="h-full flex flex-col items-center justify-center">
@@ -342,18 +368,31 @@ const PhotoCard = ({ photo }: { photo: { src: string; shayari: string } }) => {
         />
       </motion.div>
 
-      {/* Shayari quote with fade animation */}
+      {/* AI text with typewriter */}
       {imageLoaded && (
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.6, ease: "easeOut" }}
-          className="text-center px-2"
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="text-center px-2 min-h-[72px]"
         >
           <div className="w-8 h-px bg-primary/40 mx-auto mb-3" />
-          <p className="font-cursive text-lg sm:text-xl text-foreground leading-relaxed">
-            "{photo.shayari}"
-          </p>
+          {loading || !aiText ? (
+            <motion.p
+              animate={{ opacity: [0.4, 1, 0.4] }}
+              transition={{ duration: 1.4, repeat: Infinity }}
+              className="text-muted-foreground text-xs"
+            >
+              ✨ likh raha hu... ✨
+            </motion.p>
+          ) : (
+            <p className="font-cursive text-lg sm:text-xl text-foreground leading-relaxed">
+              "{displayed}"
+              {!done && (
+                <span className="inline-block w-0.5 h-4 bg-primary ml-1 animate-pulse align-middle" />
+              )}
+            </p>
+          )}
           <div className="w-8 h-px bg-primary/40 mx-auto mt-3" />
         </motion.div>
       )}
