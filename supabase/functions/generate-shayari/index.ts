@@ -19,6 +19,16 @@ serve(async (req) => {
     if (type === "shayari") {
       systemPrompt = "Tum ek Hindi shayari poet ho. Sirf ek chhoti si 2-3 line ki shayari likho behen ke birthday ke liye. Pyaar, dua, aur khushi ka theme rakho. Hinglish mein likho (Hindi words in English letters). Koi greeting ya explanation mat do, sirf shayari likho. Emojis use karo.";
       userPrompt = "Ek nayi unique birthday shayari likho behen ke liye. Bahut chhoti rakho, 2-3 lines max.";
+    } else if (type === "photo") {
+      // Randomly pick: cute English message OR Hindi (Hinglish) shayari for chhoti behen
+      const pickShayari = Math.random() < 0.5;
+      if (pickShayari) {
+        systemPrompt = "Tum ek Hindi shayari poet ho. Chhoti behen (younger sister) ke liye ek bahut hi cute, pyaari aur choti shayari likho — sirf 1 ya 2 line. Hinglish mein likho. Sirf shayari, koi prefix nahi. 1-2 emoji end mein.";
+        userPrompt = "Ek nayi unique pyaari si choti shayari likho chhoti behen ke liye, 1-2 line max.";
+      } else {
+        systemPrompt = "You write very short, cute one-line English messages for a little sister. Sweet, loving, playful tone. Only ONE short sentence (max 12 words). No greeting prefix. End with 1-2 cute emojis.";
+        userPrompt = "Write a new unique cute one-line message for my little sister.";
+      }
     } else if (type === "ending") {
       systemPrompt = "Tum ek Hindi message writer ho. Ek emotional birthday message likho behen ke liye. Hinglish mein likho. 3-4 lines ka message hona chahiye jo dil ko chhoo le. Sirf message likho, koi greeting prefix mat do. Emojis use karo end mein.";
       userPrompt = "Ek emotional aur pyaara birthday message likho junior behen Khushi ke liye jo college mein hai. Bahut khaas insaan hai wo.";
