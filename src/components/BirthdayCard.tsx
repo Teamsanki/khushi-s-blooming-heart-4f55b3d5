@@ -49,25 +49,19 @@ const useTypewriter = (text: string, speed = 40, start = true) => {
   return { displayed, done };
 };
 
-// Page flip variants - realistic book page turn
+// Page flip variants - realistic paper turn (180deg around edge)
 const pageFlipVariants = {
   enter: (d: number) => ({
-    rotateY: d >= 0 ? 90 : -90,
+    rotateY: d >= 0 ? -180 : 180,
     opacity: 0,
-    scale: 0.95,
-    originX: d >= 0 ? 0 : 1,
   }),
   center: {
     rotateY: 0,
     opacity: 1,
-    scale: 1,
-    originX: 0.5,
   },
   exit: (d: number) => ({
-    rotateY: d >= 0 ? -90 : 90,
+    rotateY: d >= 0 ? 180 : -180,
     opacity: 0,
-    scale: 0.95,
-    originX: d >= 0 ? 0 : 1,
   }),
 };
 
@@ -262,13 +256,27 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
               animate="center"
               exit="exit"
               transition={{
-                duration: 0.5,
-                ease: [0.4, 0, 0.2, 1],
-                rotateY: { duration: 0.6, ease: "easeInOut" },
+                opacity: { duration: 0.25, ease: "easeInOut" },
+                rotateY: { duration: 0.85, ease: [0.645, 0.045, 0.355, 1.0] },
               }}
               className="absolute inset-0 p-5 sm:p-6 flex flex-col"
-              style={{ backfaceVisibility: "hidden", transformStyle: "preserve-3d" }}
+              style={{
+                backfaceVisibility: "hidden",
+                transformStyle: "preserve-3d",
+                transformOrigin: direction >= 0 ? "left center" : "right center",
+                boxShadow: "0 10px 30px hsl(var(--foreground) / 0.08)",
+              }}
             >
+              {/* Paper crease shadow that intensifies during flip */}
+              <div
+                className="absolute inset-0 pointer-events-none rounded-2xl"
+                style={{
+                  background:
+                    direction >= 0
+                      ? "linear-gradient(to right, hsl(var(--foreground)/0.18) 0%, transparent 25%, transparent 75%, hsl(var(--foreground)/0.05) 100%)"
+                      : "linear-gradient(to left, hsl(var(--foreground)/0.18) 0%, transparent 25%, transparent 75%, hsl(var(--foreground)/0.05) 100%)",
+                }}
+              />
               {renderPage()}
             </motion.div>
           </AnimatePresence>
