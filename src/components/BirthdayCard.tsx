@@ -71,9 +71,20 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [direction, setDirection] = useState(0);
   const [treeComplete, setTreeComplete] = useState(false);
+  const [pageReady, setPageReady] = useState(false);
   const touchStartX = useRef(0);
 
   const totalPages = 1 + photos.length + 1; // tree + photos + final
+
+  // Reset readiness whenever page changes
+  useEffect(() => {
+    setPageReady(false);
+  }, [currentPage]);
+
+  // Tree page readiness mirrors treeComplete
+  useEffect(() => {
+    if (currentPage === 0 && treeComplete) setPageReady(true);
+  }, [currentPage, treeComplete]);
 
   const handleOpenCover = () => {
     setCoverOpen(true);
@@ -202,7 +213,7 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
           <h3 className="text-xl font-display font-bold text-foreground mb-2">
             🌳 A Tree of Love 💖
           </h3>
-          <HeartTree onComplete={() => setTreeComplete(true)} />
+          <HeartTree onComplete={() => { setTreeComplete(true); setPageReady(true); }} />
           {treeComplete && (
             <motion.p
               initial={{ opacity: 0 }}
@@ -218,7 +229,7 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
 
     if (currentPage >= 1 && currentPage <= photos.length) {
       const photo = photos[currentPage - 1];
-      return <PhotoCard photo={photo} />;
+      return <PhotoCard photo={photo} onReady={() => setPageReady(true)} />;
     }
 
     // Final page
@@ -293,15 +304,21 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
           </button>
         )}
 
-        {/* Next button */}
-        {currentPage < totalPages - 1 && (
+        {/* Next button — appears only when current page content (AI/typewriter) is ready */}
+        {currentPage < totalPages - 1 && pageReady && (
           <button
             onClick={goNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors z-10 text-lg"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary hover:bg-primary/20 transition-colors z-10 text-lg animate-fade-in"
             aria-label="Next"
           >
             ›
           </button>
+        )}
+        {/* Subtle waiting hint when next is hidden */}
+        {currentPage < totalPages - 1 && !pageReady && (
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 text-[10px] text-muted-foreground/60 italic">
+            likh raha hu…
+          </div>
         )}
 
         {/* Page indicator */}
@@ -323,7 +340,7 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
 };
 
 // Photo card component with fade-in shayari
-const PhotoCard = ({ photo }: { photo: { src: string; shayari: string } }) => {
+const PhotoCard = ({ photo, onReady }: { photo: { src: string; shayari: string }; onReady?: () => void }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [aiText, setAiText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -351,6 +368,10 @@ const PhotoCard = ({ photo }: { photo: { src: string; shayari: string } }) => {
   }, [photo.src]);
 
   const { displayed, done } = useTypewriter(aiText, 35, imageLoaded && !loading && !!aiText);
+
+  useEffect(() => {
+    if (done) onReady?.();
+  }, [done, onReady]);
 
   return (
     <div className="h-full flex flex-col items-center justify-center">
