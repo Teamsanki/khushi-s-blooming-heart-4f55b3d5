@@ -9,6 +9,7 @@ type Phase = "splash" | "countdown" | "game" | "card" | "ending";
 
 const TARGET_DATE = new Date("2026-07-10T00:00:00");
 const FADE_DURATION = 2000;
+const PREVIEW_DURATION_MS = 3 * 60 * 1000; // 3 minutes preview before re-locking
 
 const Index = () => {
   const [phase, setPhase] = useState<Phase>("splash");
@@ -137,6 +138,21 @@ const Index = () => {
   const handleCountdownUnlock = useCallback(() => {
     setPhase("game");
   }, []);
+
+  // Auto re-lock back to countdown after 3 minutes if real birthday hasn't arrived yet.
+  // Applies once user has unlocked early (via password) and is browsing game/card/ending.
+  useEffect(() => {
+    const isPostUnlock = phase === "game" || phase === "card" || phase === "ending";
+    if (!isPostUnlock) return;
+    if (Date.now() >= TARGET_DATE.getTime()) return; // birthday actually arrived — keep open
+
+    const timer = setTimeout(() => {
+      if (Date.now() < TARGET_DATE.getTime()) {
+        setPhase("countdown");
+      }
+    }, PREVIEW_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [phase]);
 
   return (
     <div className="min-h-screen bg-background relative">
