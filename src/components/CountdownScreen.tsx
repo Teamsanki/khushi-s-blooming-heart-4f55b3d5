@@ -12,6 +12,43 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, ms: 0 });
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [showPwd, setShowPwd] = useState(false);
+  const [pwd, setPwd] = useState("");
+  const [pwdError, setPwdError] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const holdTimerRef = useRef<number | null>(null);
+  const holdRafRef = useRef<number | null>(null);
+
+  const startHold = () => {
+    const start = Date.now();
+    const tick = () => {
+      const p = Math.min(1, (Date.now() - start) / 1200);
+      setHoldProgress(p);
+      if (p < 1) holdRafRef.current = requestAnimationFrame(tick);
+    };
+    holdRafRef.current = requestAnimationFrame(tick);
+    holdTimerRef.current = window.setTimeout(() => {
+      setShowPwd(true);
+      setPwd("");
+      setPwdError(false);
+      setHoldProgress(0);
+    }, 1200);
+  };
+  const endHold = () => {
+    if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null; }
+    if (holdRafRef.current) { cancelAnimationFrame(holdRafRef.current); holdRafRef.current = null; }
+    setHoldProgress(0);
+  };
+
+  const submitPwd = () => {
+    if (pwd === "11211") {
+      setIsUnlocked(true);
+      onUnlock();
+    } else {
+      setPwdError(true);
+      setTimeout(() => setPwdError(false), 1200);
+    }
+  };
 
   const totalDays = useMemo(() => {
     return Math.ceil((targetDate.getTime() - LAUNCH_DATE.getTime()) / (1000 * 60 * 60 * 24));
@@ -174,18 +211,36 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
         <div
           className="w-36 h-36 sm:w-44 sm:h-44 rounded-full overflow-hidden border-4 border-white shadow-2xl ring-1 ring-black/5 transition-all duration-1000"
           style={{ filter: `blur(${blurAmount}px)` }}
+          onMouseDown={startHold}
+          onMouseUp={endHold}
+          onMouseLeave={endHold}
+          onTouchStart={startHold}
+          onTouchEnd={endHold}
+          onTouchCancel={endHold}
+          onContextMenu={(e) => e.preventDefault()}
         >
           <img
             src="/photos/khushi-1.jpeg"
             alt="Khushi"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover select-none pointer-events-none"
+            draggable={false}
           />
         </div>
+        {holdProgress > 0 && holdProgress < 1 && (
+          <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="48" fill="none" stroke="hsl(var(--primary) / 0.25)" strokeWidth="2" />
+            <circle cx="50" cy="50" r="48" fill="none" stroke="hsl(var(--primary))" strokeWidth="2"
+              strokeDasharray={2 * Math.PI * 48}
+              strokeDashoffset={2 * Math.PI * 48 * (1 - holdProgress)}
+              strokeLinecap="round" />
+          </svg>
+        )}
         {blurAmount > 5 && (
           <motion.div
             className="absolute inset-0 flex items-center justify-center"
             animate={{ scale: [1, 1.1, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
+            style={{ pointerEvents: "none" }}
           >
             <span className="text-5xl drop-shadow-lg">🔒</span>
           </motion.div>
@@ -352,6 +407,45 @@ const CountdownScreen = ({ targetDate, onUnlock }: CountdownScreenProps) => {
         </div>
       </motion.footer>
       </div>
+
+      {showPwd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setShowPwd(false)}>
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xs bg-card border border-border rounded-2xl p-6 shadow-2xl text-center"
+          >
+            <div className="text-3xl mb-2">🔐</div>
+            <h3 className="text-base font-display font-bold text-foreground mb-1">Secret Password</h3>
+            <p className="text-xs text-muted-foreground mb-4">Sirf Sumit jaanta hai 😏</p>
+            <input
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              value={pwd}
+              onChange={(e) => setPwd(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitPwd()}
+              placeholder="• • • • •"
+              className={`w-full text-center text-lg tracking-[0.5em] px-4 py-3 rounded-xl bg-background border-2 outline-none transition-colors ${
+                pwdError ? "border-destructive animate-pulse" : "border-border focus:border-primary"
+              }`}
+            />
+            {pwdError && <p className="text-xs text-destructive mt-2">Galat password 😤</p>}
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setShowPwd(false)}
+                className="flex-1 py-2 rounded-lg bg-muted text-muted-foreground text-sm font-medium"
+              >Cancel</button>
+              <button
+                onClick={submitPwd}
+                className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium"
+              >Unlock</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
