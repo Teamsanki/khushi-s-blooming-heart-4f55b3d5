@@ -53,19 +53,19 @@ const useTypewriter = (text: string, speed = 40, start = true) => {
 // - Exiting page peels around its edge (left for forward, right for back) 0 -> -180deg
 // - Entering page is revealed underneath (no rotation, just sits there)
 // Implemented per layer (exiting/entering) below via separate variants.
-const exitVariants = {
+const exitVariants: import("framer-motion").Variants = {
   initial: { rotateY: 0 },
   animate: (d: number) => ({
     rotateY: d >= 0 ? -180 : 180,
-    transition: { duration: 0.9, ease: [0.645, 0.045, 0.355, 1.0] },
+    transition: { duration: 0.9, ease: [0.645, 0.045, 0.355, 1.0] as [number, number, number, number] },
   }),
 };
-const enterVariants = {
+const enterVariants: import("framer-motion").Variants = {
   initial: { opacity: 0, scale: 0.985 },
   animate: {
     opacity: 1,
     scale: 1,
-    transition: { delay: 0.25, duration: 0.45, ease: "easeOut" },
+    transition: { delay: 0.25, duration: 0.45, ease: "easeOut" as const },
   },
 };
 
