@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 const allEmojis = ["🎂", "🎁", "🎈", "💖", "🌸", "👑", "⭐", "🦋", "🎀", "💎", "🌹", "🥳"];
 
@@ -81,7 +81,14 @@ const MemoryGame = ({ onComplete }: MemoryGameProps) => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+      {/* Soft animated backdrop */}
+      <div className="absolute inset-0 -z-10 opacity-50"
+        style={{
+          background:
+            "radial-gradient(ellipse at 20% 30%, hsl(var(--primary)/0.15), transparent 50%), radial-gradient(ellipse at 80% 70%, hsl(var(--accent)/0.12), transparent 50%)",
+        }}
+      />
       <div className="w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden border border-border">
         <div className="bg-primary p-5 text-center">
           <h2 className="text-lg font-display font-bold text-primary-foreground">🧠 Memory Match Karo!</h2>
@@ -92,35 +99,47 @@ const MemoryGame = ({ onComplete }: MemoryGameProps) => {
             ))}
           </div>
         </div>
-        <div className="p-4">
+        <div className="p-4" style={{ perspective: "1000px" }}>
           <div className="grid grid-cols-4 gap-2.5">
-            {cards.map(card => (
-              <motion.button
-                key={card.id}
-                onClick={() => handleFlip(card.id)}
-                className={`aspect-square rounded-xl text-2xl flex items-center justify-center font-bold transition-all border-2 ${
-                  card.matched
-                    ? "bg-success/10 border-success"
-                    : card.flipped
-                    ? "bg-secondary border-primary"
-                    : "bg-muted border-border hover:border-primary/50"
-                }`}
-                whileTap={{ scale: 0.95 }}
-                animate={card.matched ? { scale: [1, 1.15, 1] } : {}}
-              >
-                <AnimatePresence mode="wait">
-                  {card.flipped || card.matched ? (
-                    <motion.span key="emoji" initial={{ rotateY: 90 }} animate={{ rotateY: 0 }} exit={{ rotateY: 90 }} transition={{ duration: 0.2 }}>
-                      {card.emoji}
-                    </motion.span>
-                  ) : (
-                    <motion.span key="back" initial={{ rotateY: -90 }} animate={{ rotateY: 0 }} exit={{ rotateY: -90 }} transition={{ duration: 0.2 }} className="text-muted-foreground/40">
+            {cards.map(card => {
+              const isShown = card.flipped || card.matched;
+              return (
+                <motion.button
+                  key={card.id}
+                  onClick={() => handleFlip(card.id)}
+                  className="aspect-square rounded-xl relative"
+                  whileTap={{ scale: 0.92 }}
+                  animate={card.matched ? { scale: [1, 1.12, 1] } : {}}
+                  style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
+                >
+                  <motion.div
+                    className="absolute inset-0"
+                    animate={{ rotateY: isShown ? 180 : 0 }}
+                    transition={{ duration: 0.55, ease: [0.645, 0.045, 0.355, 1] as [number, number, number, number] }}
+                    style={{ transformStyle: "preserve-3d" }}
+                  >
+                    {/* Back face (question mark) */}
+                    <div
+                      className="absolute inset-0 rounded-xl flex items-center justify-center border-2 border-border bg-gradient-to-br from-muted to-secondary text-muted-foreground/50 text-2xl font-bold shadow-md"
+                      style={{ backfaceVisibility: "hidden" }}
+                    >
                       ?
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </motion.button>
-            ))}
+                    </div>
+                    {/* Front face (emoji) */}
+                    <div
+                      className={`absolute inset-0 rounded-xl flex items-center justify-center text-3xl border-2 shadow-md ${
+                        card.matched
+                          ? "bg-success/15 border-success ring-2 ring-success/40"
+                          : "bg-gradient-to-br from-secondary to-card border-primary"
+                      }`}
+                      style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
+                    >
+                      {card.emoji}
+                    </div>
+                  </motion.div>
+                </motion.button>
+              );
+            })}
           </div>
         </div>
       </div>

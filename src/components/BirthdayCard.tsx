@@ -49,20 +49,24 @@ const useTypewriter = (text: string, speed = 40, start = true) => {
   return { displayed, done };
 };
 
-// Page flip variants - realistic paper turn (180deg around edge)
-const pageFlipVariants = {
-  enter: (d: number) => ({
+// Realistic book page turn:
+// - Exiting page peels around its edge (left for forward, right for back) 0 -> -180deg
+// - Entering page is revealed underneath (no rotation, just sits there)
+// Implemented per layer (exiting/entering) below via separate variants.
+const exitVariants: import("framer-motion").Variants = {
+  initial: { rotateY: 0 },
+  animate: (d: number) => ({
     rotateY: d >= 0 ? -180 : 180,
-    opacity: 0,
+    transition: { duration: 0.9, ease: [0.645, 0.045, 0.355, 1.0] as [number, number, number, number] },
   }),
-  center: {
-    rotateY: 0,
+};
+const enterVariants: import("framer-motion").Variants = {
+  initial: { opacity: 0, scale: 0.985 },
+  animate: {
     opacity: 1,
+    scale: 1,
+    transition: { delay: 0.25, duration: 0.45, ease: "easeOut" as const },
   },
-  exit: (d: number) => ({
-    rotateY: d >= 0 ? 180 : -180,
-    opacity: 0,
-  }),
 };
 
 const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
@@ -73,6 +77,8 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
   const [treeComplete, setTreeComplete] = useState(false);
   const [pageReady, setPageReady] = useState(false);
   const touchStartX = useRef(0);
+  const [flipping, setFlipping] = useState(false);
+  const [prevPage, setPrevPage] = useState<number | null>(null);
 
   const totalPages = 1 + photos.length + 1; // tree + photos + final
 
@@ -98,18 +104,22 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
   };
 
   const goNext = useCallback(() => {
-    if (currentPage < totalPages - 1) {
+    if (currentPage < totalPages - 1 && !flipping) {
       setDirection(1);
+      setPrevPage(currentPage);
+      setFlipping(true);
       setCurrentPage((p) => p + 1);
     }
-  }, [currentPage, totalPages]);
+  }, [currentPage, totalPages, flipping]);
 
   const goPrev = useCallback(() => {
-    if (currentPage > 0) {
+    if (currentPage > 0 && !flipping) {
       setDirection(-1);
+      setPrevPage(currentPage);
+      setFlipping(true);
       setCurrentPage((p) => p - 1);
     }
-  }, [currentPage]);
+  }, [currentPage, flipping]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -256,40 +266,99 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
           className="relative h-full"
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
-          style={{ perspective: "1200px" }}
+          style={{ perspective: "1800px" }}
         >
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.div
-              key={currentPage}
-              custom={direction}
-              variants={pageFlipVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{
-                opacity: { duration: 0.25, ease: "easeInOut" },
-                rotateY: { duration: 0.85, ease: [0.645, 0.045, 0.355, 1.0] },
-              }}
-              className="absolute inset-0 p-5 sm:p-6 flex flex-col"
-              style={{
-                backfaceVisibility: "hidden",
-                transformStyle: "preserve-3d",
-                transformOrigin: direction >= 0 ? "left center" : "right center",
-                boxShadow: "0 10px 30px hsl(var(--foreground) / 0.08)",
-              }}
-            >
-              {/* Paper crease shadow that intensifies during flip */}
-              <div
-                className="absolute inset-0 pointer-events-none rounded-2xl"
-                style={{
-                  background:
-                    direction >= 0
-                      ? "linear-gradient(to right, hsl(var(--foreground)/0.18) 0%, transparent 25%, transparent 75%, hsl(var(--foreground)/0.05) 100%)"
-                      : "linear-gradient(to left, hsl(var(--foreground)/0.18) 0%, transparent 25%, transparent 75%, hsl(var(--foreground)/0.05) 100%)",
+          {/* Entering / current page sits underneath */}
+          <motion.div
+            key={`current-${currentPage}`}
+            variants={enterVariants}
+            initial="initial"
+            animate="animate"
+            className="absolute inset-0 p-5 sm:p-6 flex flex-col"
+          >
+            {renderPage()}
+          </motion.div>
+
+          {/* Exiting page peels over the top */}
+          <AnimatePresence>
+            {flipping && prevPage !== null && (
+              <motion.div
+                key={`flip-${prevPage}-${direction}`}
+                custom={direction}
+                variants={exitVariants}
+                initial="initial"
+                animate="animate"
+                onAnimationComplete={() => {
+                  setFlipping(false);
+                  setPrevPage(null);
                 }}
-              />
-              {renderPage()}
-            </motion.div>
+                className="absolute inset-0 z-[5]"
+                style={{
+                  transformStyle: "preserve-3d",
+                  transformOrigin: direction >= 0 ? "left center" : "right center",
+                  boxShadow:
+                    direction >= 0
+                      ? "8px 0 28px hsl(var(--foreground) / 0.18)"
+                      : "-8px 0 28px hsl(var(--foreground) / 0.18)",
+                  borderRadius: "1rem",
+                  background: "hsl(var(--card))",
+                }}
+              >
+                {/* Front face — shows the page being turned */}
+                <div
+                  className="absolute inset-0 p-5 sm:p-6 flex flex-col rounded-2xl overflow-hidden"
+                  style={{ backfaceVisibility: "hidden" }}
+                >
+                  <div className="absolute inset-0 paper-lines opacity-30 pointer-events-none" />
+                  {(() => {
+                    if (prevPage === 0) {
+                      return (
+                        <div className="h-full flex flex-col items-center justify-center">
+                          <h3 className="text-xl font-display font-bold text-foreground mb-2">
+                            🌳 A Tree of Love 💖
+                          </h3>
+                          <div className="w-40 h-40 rounded-full bg-primary/10" />
+                        </div>
+                      );
+                    }
+                    if (prevPage >= 1 && prevPage <= photos.length) {
+                      const p = photos[prevPage - 1];
+                      return (
+                        <div className="h-full flex items-center justify-center">
+                          <img src={p.src} alt="" className="max-h-[55vh] w-auto rounded-xl object-contain" />
+                        </div>
+                      );
+                    }
+                    return <div className="h-full" />;
+                  })()}
+                  {/* Dynamic crease shadow */}
+                  <motion.div
+                    className="absolute inset-0 pointer-events-none rounded-2xl"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0, 0.4, 0.6, 0.2] }}
+                    transition={{ duration: 0.9, times: [0, 0.3, 0.6, 1] }}
+                    style={{
+                      background:
+                        direction >= 0
+                          ? "linear-gradient(to right, hsl(var(--foreground)/0.25), transparent 35%)"
+                          : "linear-gradient(to left, hsl(var(--foreground)/0.25), transparent 35%)",
+                    }}
+                  />
+                </div>
+                {/* Back face — subtle paper back */}
+                <div
+                  className="absolute inset-0 rounded-2xl"
+                  style={{
+                    backfaceVisibility: "hidden",
+                    transform: "rotateY(180deg)",
+                    background:
+                      "linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%)",
+                  }}
+                >
+                  <div className="absolute inset-0 paper-lines opacity-20" />
+                </div>
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
 
