@@ -11,7 +11,7 @@ const TARGET_DATE = new Date("2026-07-10T00:00:00");
 const FADE_DURATION = 2000;
 
 const Index = () => {
-  const [phase, setPhase] = useState<Phase>("game");
+  const [phase, setPhase] = useState<Phase>("splash");
   const [musicMuted, setMusicMuted] = useState(false);
   const countdownAudioRef = useRef<HTMLAudioElement>(null);
   const birthdayAudioRef = useRef<HTMLAudioElement>(null);
