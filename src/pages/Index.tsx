@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import MemoryGame from "@/components/MemoryGame";
+import BalloonPopGame from "@/components/BalloonPopGame";
+import CakeBanaoGame from "@/components/CakeBanaoGame";
 import BirthdayCard from "@/components/BirthdayCard";
 import SplashScreen from "@/components/SplashScreen";
 import CountdownScreen from "@/components/CountdownScreen";
 import EndingScreen from "@/components/EndingScreen";
 
-type Phase = "splash" | "countdown" | "game" | "card" | "ending";
+type Phase = "splash" | "countdown" | "game1" | "game2" | "game3" | "card" | "ending";
 
 const TARGET_DATE = new Date("2026-07-10T00:00:00");
 const FADE_DURATION = 2000;
@@ -60,8 +62,8 @@ const Index = () => {
       fadeAudio("countdown", countdown, 0, 1, FADE_DURATION);
     }
 
-    // Countdown → Game: fade out countdown, start birthday (always from beginning)
-    if (prev === "countdown" && phase === "game") {
+    // Countdown → Game1: fade out countdown, start birthday (always from beginning)
+    if (prev === "countdown" && phase === "game1") {
       if (countdown && !countdown.paused) {
         fadeAudio("countdown", countdown, countdown.volume, 0, FADE_DURATION);
       }
@@ -94,7 +96,7 @@ const Index = () => {
     if (!audio) return;
     const handleEnded = () => {
       if (musicMuted) return;
-      const isPostCountdown = phase === "game" || phase === "card" || phase === "ending";
+      const isPostCountdown = ["game1","game2","game3","card","ending"].includes(phase);
       if (isPostCountdown) {
         audio.currentTime = 0;
         audio.volume = 0;
@@ -126,7 +128,7 @@ const Index = () => {
         countdown.play().catch(() => {});
         fadeAudio("countdown", countdown, 0, 1, FADE_DURATION);
       }
-      const isPostCountdown = phase === "game" || phase === "card" || phase === "ending";
+      const isPostCountdown = ["game1","game2","game3","card","ending"].includes(phase);
       if (isPostCountdown && birthday) {
         birthday.volume = 0;
         birthday.play().catch(() => {});
@@ -136,13 +138,13 @@ const Index = () => {
   };
 
   const handleCountdownUnlock = useCallback(() => {
-    setPhase("game");
+    setPhase("game1");
   }, []);
 
   // Auto re-lock back to countdown after 3 minutes if real birthday hasn't arrived yet.
   // Applies once user has unlocked early (via password) and is browsing game/card/ending.
   useEffect(() => {
-    const isPostUnlock = phase === "game" || phase === "card" || phase === "ending";
+    const isPostUnlock = ["game1","game2","game3","card","ending"].includes(phase);
     if (!isPostUnlock) return;
     if (Date.now() >= TARGET_DATE.getTime()) return; // birthday actually arrived — keep open
 
@@ -164,8 +166,16 @@ const Index = () => {
         <CountdownScreen targetDate={TARGET_DATE} onUnlock={handleCountdownUnlock} />
       )}
 
-      {phase === "game" && (
-        <MemoryGame onComplete={() => setPhase("card")} />
+      {phase === "game1" && (
+        <BalloonPopGame onComplete={() => setPhase("game2")} />
+      )}
+
+      {phase === "game2" && (
+        <MemoryGame onComplete={() => setPhase("game3")} />
+      )}
+
+      {phase === "game3" && (
+        <CakeBanaoGame onComplete={() => setPhase("card")} />
       )}
 
       {phase === "card" && (
