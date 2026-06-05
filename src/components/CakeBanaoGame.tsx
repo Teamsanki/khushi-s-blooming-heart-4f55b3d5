@@ -57,6 +57,7 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
   const [showComplete, setShowComplete] = useState(false);
   const [wrong, setWrong] = useState(false);
   const [stageBurst, setStageBurst] = useState(0);
+  const [bakePhase, setBakePhase] = useState<"idle" | "rotate" | "oven" | "finale">("idle");
   const dropRef = useRef<HTMLDivElement>(null);
 
   // Persist progress after every change
@@ -93,10 +94,16 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
     setTimeout(() => setStageBurst((b) => Math.max(0, b - 1)), 800);
     if (newProg >= stage.count) {
       if (stageIdx + 1 >= STAGES.length) {
-        setShowComplete(true);
         // Cake fully built — clear saved progress so next visit starts fresh
         try { localStorage.removeItem(STORAGE_KEY); } catch {}
-        setTimeout(onComplete, 2000);
+        // Start cinematic bake sequence: rotate → oven → finale
+        setTimeout(() => setBakePhase("rotate"), 500);
+        setTimeout(() => setBakePhase("oven"), 3000);
+        setTimeout(() => {
+          setBakePhase("finale");
+          setShowComplete(true);
+        }, 6500);
+        setTimeout(onComplete, 12000);
       } else {
         setTimeout(() => {
           setStageIdx(stageIdx + 1);
@@ -115,33 +122,13 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
 
   if (showComplete) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
-        {/* Confetti */}
-        {Array.from({ length: 20 }).map((_, i) => (
-          <motion.div
-            key={i}
-            initial={{ y: -20, x: `${Math.random() * 100}vw`, opacity: 1 }}
-            animate={{ y: "110vh", rotate: 360 * (Math.random() > 0.5 ? 1 : -1) }}
-            transition={{ duration: 2 + Math.random() * 2, ease: "linear" }}
-            className="absolute text-2xl"
-          >
-            {["🎉", "✨", "💖", "🎀", "⭐"][i % 5]}
-          </motion.div>
-        ))}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", bounce: 0.5 }}
-          className="text-center relative z-10"
-        >
-          <div className="text-7xl mb-4">🎂</div>
-          <h2 className="text-3xl font-display font-bold text-foreground">
-            Happy Birthday Khushi!
-          </h2>
-          <p className="text-muted-foreground mt-2">Surprise khul raha hai...</p>
-        </motion.div>
-      </div>
+      <FinaleScreen />
     );
+  }
+
+  // Cinematic bake overlay (rotate + oven)
+  if (bakePhase === "rotate" || bakePhase === "oven") {
+    return <BakeScene phase={bakePhase} />;
   }
 
   return (
@@ -434,3 +421,232 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
 };
 
 export default CakeBanaoGame;
+
+// ============= Bake Scene (rotate + oven) =============
+const BakeScene = ({ phase }: { phase: "rotate" | "oven" }) => {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-900 via-orange-950 to-black p-4 relative overflow-hidden">
+      {/* Heat shimmer */}
+      <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 50% 60%, #ff8c42 0%, transparent 60%)" }} />
+      <div className="text-center relative z-10">
+        <motion.p
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-white/90 font-display text-xl mb-6"
+        >
+          {phase === "rotate" ? "Cake spin ho raha hai... ✨" : "Oven me pak raha hai... 🔥"}
+        </motion.p>
+
+        {phase === "oven" && (
+          <div className="relative mx-auto" style={{ width: 320, height: 280 }}>
+            {/* Oven frame */}
+            <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-zinc-700 to-zinc-900 border-4 border-zinc-600 shadow-2xl" />
+            {/* Oven glass */}
+            <div className="absolute inset-4 rounded-xl overflow-hidden border-2 border-amber-700"
+              style={{ background: "radial-gradient(ellipse at center, #ff7a18 0%, #c2410c 50%, #4a1d05 100%)" }}>
+              {/* Heat glow flicker */}
+              <motion.div className="absolute inset-0"
+                animate={{ opacity: [0.6, 1, 0.7, 0.95, 0.6] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                style={{ background: "radial-gradient(circle at 50% 80%, #ffd700 0%, transparent 60%)" }}
+              />
+              {/* Rotating cake inside oven */}
+              <motion.div
+                className="absolute left-1/2 top-1/2 text-6xl"
+                style={{ translateX: "-50%", translateY: "-50%" }}
+                animate={{ rotate: 360 }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              >
+                🎂
+              </motion.div>
+              {/* Sparks */}
+              {Array.from({ length: 14 }).map((_, i) => (
+                <motion.span key={i} className="absolute text-xs"
+                  initial={{ x: `${20 + Math.random() * 60}%`, y: "100%", opacity: 0 }}
+                  animate={{ y: "-20%", opacity: [0, 1, 0] }}
+                  transition={{ duration: 1.5 + Math.random(), repeat: Infinity, delay: Math.random() * 2 }}
+                >✨</motion.span>
+              ))}
+            </div>
+            {/* Oven knobs */}
+            <div className="absolute -bottom-2 left-6 w-4 h-4 rounded-full bg-zinc-400 border border-zinc-700" />
+            <div className="absolute -bottom-2 right-6 w-4 h-4 rounded-full bg-zinc-400 border border-zinc-700" />
+          </div>
+        )}
+
+        {phase === "rotate" && (
+          <motion.div
+            className="text-8xl mx-auto"
+            animate={{ rotateY: 360, scale: [1, 1.1, 1] }}
+            transition={{ duration: 2.5, ease: "easeInOut" }}
+            style={{ transformStyle: "preserve-3d" }}
+          >
+            🎂
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============= Finale Screen (sky + fireworks + crackers + text) =============
+const FinaleScreen = () => {
+  const fireworks = Array.from({ length: 8 }).map((_, i) => ({
+    id: i,
+    cx: 10 + Math.random() * 80,
+    cy: 15 + Math.random() * 35,
+    delay: i * 0.4,
+    hue: Math.floor(Math.random() * 360),
+  }));
+
+  return (
+    <div className="min-h-screen relative overflow-hidden"
+      style={{
+        background:
+          "linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 35%, #4a1d5e 70%, #7a2d3e 100%)",
+      }}
+    >
+      {/* Stars */}
+      {Array.from({ length: 60 }).map((_, i) => (
+        <motion.div
+          key={`star-${i}`}
+          className="absolute rounded-full bg-white"
+          style={{
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 70}%`,
+            width: 1 + Math.random() * 2,
+            height: 1 + Math.random() * 2,
+          }}
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ duration: 1 + Math.random() * 2, repeat: Infinity, delay: Math.random() * 2 }}
+        />
+      ))}
+
+      {/* Moon */}
+      <motion.div
+        initial={{ opacity: 0, y: -30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1 }}
+        className="absolute right-10 top-10 w-20 h-20 rounded-full"
+        style={{
+          background: "radial-gradient(circle at 35% 35%, #fff8e1, #ffd54f 70%, #ffb300)",
+          boxShadow: "0 0 60px rgba(255, 213, 79, 0.6)",
+        }}
+      />
+
+      {/* Fireworks bursts */}
+      {fireworks.map((fw) => (
+        <motion.div
+          key={fw.id}
+          className="absolute"
+          style={{ left: `${fw.cx}%`, top: `${fw.cy}%` }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 1, 0] }}
+          transition={{ duration: 1.8, repeat: Infinity, delay: fw.delay, repeatDelay: 1.5 }}
+        >
+          {Array.from({ length: 18 }).map((_, j) => {
+            const angle = (j / 18) * Math.PI * 2;
+            return (
+              <motion.span
+                key={j}
+                className="absolute block w-1.5 h-1.5 rounded-full"
+                style={{
+                  background: `hsl(${(fw.hue + j * 10) % 360}, 90%, 65%)`,
+                  boxShadow: `0 0 8px hsl(${fw.hue}, 90%, 70%)`,
+                }}
+                animate={{
+                  x: Math.cos(angle) * 90,
+                  y: Math.sin(angle) * 90,
+                  opacity: [1, 1, 0],
+                  scale: [1, 1, 0.3],
+                }}
+                transition={{ duration: 1.6, repeat: Infinity, delay: fw.delay, repeatDelay: 1.5, ease: "easeOut" }}
+              />
+            );
+          })}
+        </motion.div>
+      ))}
+
+      {/* Ground crackers (fountain sparks) */}
+      {[15, 50, 85].map((left, i) => (
+        <div key={`crk-${i}`} className="absolute" style={{ left: `${left}%`, bottom: "8%" }}>
+          {Array.from({ length: 24 }).map((_, j) => {
+            const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.8;
+            const dist = 80 + Math.random() * 100;
+            return (
+              <motion.span
+                key={j}
+                className="absolute block w-1 h-1 rounded-full"
+                style={{
+                  background: ["#ffd54f", "#ff8a65", "#ff5252", "#fff176"][j % 4],
+                  boxShadow: "0 0 6px #ffd54f",
+                }}
+                animate={{
+                  x: Math.cos(angle) * dist,
+                  y: Math.sin(angle) * dist + 30,
+                  opacity: [1, 1, 0],
+                }}
+                transition={{
+                  duration: 1.2 + Math.random() * 0.6,
+                  repeat: Infinity,
+                  delay: i * 0.2 + Math.random() * 0.5,
+                  ease: "easeOut",
+                }}
+              />
+            );
+          })}
+        </div>
+      ))}
+
+      {/* Confetti rain */}
+      {Array.from({ length: 35 }).map((_, i) => (
+        <motion.div
+          key={`conf-${i}`}
+          className="absolute"
+          initial={{ y: -30, x: `${Math.random() * 100}vw`, opacity: 1, rotate: 0 }}
+          animate={{ y: "110vh", rotate: 720 * (Math.random() > 0.5 ? 1 : -1) }}
+          transition={{ duration: 3 + Math.random() * 3, repeat: Infinity, delay: Math.random() * 3, ease: "linear" }}
+        >
+          <span className="text-xl">{["🎉", "🎊", "✨", "💖", "🎀", "⭐", "🌸"][i % 7]}</span>
+        </motion.div>
+      ))}
+
+      {/* Center text */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 z-10">
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", bounce: 0.5, delay: 0.3 }}
+          className="text-8xl mb-6 drop-shadow-2xl"
+        >
+          🎂
+        </motion.div>
+        <motion.h1
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.6 }}
+          className="font-display font-bold text-4xl md:text-6xl text-white sparkle-text leading-tight"
+        >
+          Happy Birthday
+        </motion.h1>
+        <motion.h1
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.8, delay: 1 }}
+          className="font-cursive text-6xl md:text-8xl mt-2 sparkle-text"
+          style={{ color: "#ffd1dc" }}
+        >
+          Khushi
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.6 }}
+          className="text-white/80 mt-6 text-sm md:text-base"
+        >
+          Tera surprise khul raha hai...
+        </motion.p>
+      </div>
+    </div>
+  );
+};
