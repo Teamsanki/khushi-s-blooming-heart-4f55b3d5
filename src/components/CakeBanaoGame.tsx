@@ -16,10 +16,10 @@ interface StageDef {
 }
 
 const STAGES: StageDef[] = [
-  { key: "base", emoji: "🍰", label: "Sponge Base", count: 1, hint: "Plate pe sponge base rakho" },
-  { key: "cream", emoji: "🍦", label: "Cream", count: 1, hint: "Base pe cream layer drag karo" },
-  { key: "cherry", emoji: "🍒", label: "Cherries", count: 3, hint: "3 cherries top pe rakho" },
-  { key: "candle", emoji: "🕯️", label: "Candle", count: 1, hint: "Last me candle laga do" },
+  { key: "base", emoji: "🟫", label: "Sponge", count: 1, hint: "Step 1: Plate pe chocolate sponge base drag karo 🍫" },
+  { key: "cream", emoji: "🍦", label: "Cream", count: 1, hint: "Step 2: Sponge ke upar soft pink cream layer 🍦" },
+  { key: "cherry", emoji: "🍒", label: "Cherries", count: 3, hint: "Step 3: 3 cherries cake ke top pe sajao 🍒🍒🍒" },
+  { key: "candle", emoji: "🕯️", label: "Candle", count: 1, hint: "Step 4: Birthday candle laga do — almost done! 🕯️" },
 ];
 
 const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
@@ -29,6 +29,7 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
   const [hoverDrop, setHoverDrop] = useState(false);
   const [showComplete, setShowComplete] = useState(false);
   const [wrong, setWrong] = useState(false);
+  const [stageBurst, setStageBurst] = useState(0);
   const dropRef = useRef<HTMLDivElement>(null);
 
   const stage = STAGES[stageIdx];
@@ -51,13 +52,17 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
     const next = [...placed, { stage: stage.key, x: relX }];
     setPlaced(next);
     const newProg = stageProgress + 1;
+    setStageBurst((b) => b + 1);
+    setTimeout(() => setStageBurst((b) => Math.max(0, b - 1)), 800);
     if (newProg >= stage.count) {
       if (stageIdx + 1 >= STAGES.length) {
         setShowComplete(true);
         setTimeout(onComplete, 2000);
       } else {
-        setStageIdx(stageIdx + 1);
-        setStageProgress(0);
+        setTimeout(() => {
+          setStageIdx(stageIdx + 1);
+          setStageProgress(0);
+        }, 400);
       }
     } else {
       setStageProgress(newProg);
@@ -134,103 +139,202 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
         {/* Drop area */}
         <div
           ref={dropRef}
-          className={`relative h-72 mx-4 mt-4 rounded-xl border-2 border-dashed transition-colors flex items-end justify-center pb-4 ${
+          className={`relative h-80 mx-4 mt-4 rounded-xl border-2 border-dashed transition-colors flex items-end justify-center pb-6 overflow-hidden ${
             hoverDrop ? "border-primary bg-primary/5" : "border-border bg-muted/30"
           }`}
         >
+          {/* Soft table backdrop */}
+          <div
+            className="absolute inset-0 -z-10"
+            style={{
+              background:
+                "linear-gradient(180deg, hsl(var(--muted)/0.2) 0%, hsl(var(--muted)/0.5) 100%)",
+            }}
+          />
           {!hasBase && (
             <p className="absolute inset-0 flex items-center justify-center text-muted-foreground/60 text-sm">
-              Yahan drop karo ⬇️
+              ⬇️ Tray se ingredient yahan drop karo
             </p>
           )}
-          {/* Plate */}
-          {hasBase && (
-            <div className="relative flex flex-col items-center">
-              {/* Candle (on top) */}
-              {hasCandle && (
-                <motion.div
-                  initial={{ y: -10, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  className="relative -mb-1 z-30"
-                >
-                  <motion.div
-                    animate={{ scale: [1, 1.15, 0.95, 1.1, 1] }}
-                    transition={{ duration: 1.2, repeat: Infinity }}
-                    className="w-3 h-4 rounded-full mx-auto"
-                    style={{
-                      background:
-                        "radial-gradient(circle at 50% 30%, #fff7c2, #ffb347 60%, #ff5722)",
-                      boxShadow: "0 0 12px #ffb347",
-                    }}
-                  />
-                  <div className="w-2 h-6 mx-auto rounded-sm bg-gradient-to-b from-pink-300 to-pink-500" />
-                </motion.div>
-              )}
 
-              {/* Cherries */}
-              {cherries.length > 0 && (
-                <div className="relative w-56 h-6 z-20 -mb-2">
-                  {cherries.map((c, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ y: -20, opacity: 0, scale: 0.6 }}
-                      animate={{ y: 0, opacity: 1, scale: 1 }}
-                      transition={{ type: "spring", bounce: 0.6 }}
-                      className="absolute text-xl"
-                      style={{
-                        left: `${Math.min(85, Math.max(5, c.x ?? 20 + i * 30))}%`,
-                        transform: "translateX(-50%)",
+          {/* Per-step sparkle burst */}
+          <AnimatePresence>
+            {stageBurst > 0 && (
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                {Array.from({ length: 12 }).map((_, i) => {
+                  const angle = (i / 12) * Math.PI * 2;
+                  return (
+                    <motion.span
+                      key={`${stageIdx}-${stageProgress}-${i}`}
+                      initial={{ x: 0, y: 0, opacity: 1, scale: 0.6 }}
+                      animate={{
+                        x: Math.cos(angle) * 80,
+                        y: Math.sin(angle) * 80 - 30,
+                        opacity: 0,
+                        scale: 1.2,
                       }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                      className="absolute text-lg"
                     >
-                      🍒
-                    </motion.div>
-                  ))}
-                </div>
-              )}
+                      {["✨", "💖", "⭐", "🌸"][i % 4]}
+                    </motion.span>
+                  );
+                })}
+              </div>
+            )}
+          </AnimatePresence>
 
-              {/* Cream */}
-              {hasCream && (
-                <motion.div
-                  initial={{ y: -10, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ type: "spring", bounce: 0.4 }}
-                  className="w-56 h-7 rounded-t-full -mb-1 z-10 relative"
-                  style={{
-                    background:
-                      "linear-gradient(180deg, #ffe4ec 0%, #ffd1dc 60%, #ffb6c1 100%)",
-                    boxShadow: "inset 0 -2px 4px rgba(0,0,0,0.05)",
-                  }}
-                >
-                  {/* Drips */}
-                  <div className="absolute -bottom-1 left-3 w-3 h-3 rounded-b-full bg-pink-200" />
-                  <div className="absolute -bottom-1 left-16 w-2 h-2 rounded-b-full bg-pink-200" />
-                  <div className="absolute -bottom-1 right-6 w-3 h-3 rounded-b-full bg-pink-200" />
-                  <div className="absolute -bottom-1 right-20 w-2 h-2 rounded-b-full bg-pink-200" />
-                </motion.div>
-              )}
+          {/* Realistic cake */}
+          {hasBase && (
+            <motion.svg
+              viewBox="0 0 300 260"
+              className="w-72 h-72 drop-shadow-xl"
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", bounce: 0.4 }}
+            >
+              <defs>
+                <linearGradient id="sponge" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6b3a1f" />
+                  <stop offset="50%" stopColor="#5a2e18" />
+                  <stop offset="100%" stopColor="#3d1d10" />
+                </linearGradient>
+                <linearGradient id="cream" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#fff5f8" />
+                  <stop offset="50%" stopColor="#ffd1dc" />
+                  <stop offset="100%" stopColor="#ff9fb8" />
+                </linearGradient>
+                <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f5f5f5" />
+                  <stop offset="100%" stopColor="#c8c8c8" />
+                </linearGradient>
+                <radialGradient id="flame" cx="50%" cy="30%" r="60%">
+                  <stop offset="0%" stopColor="#fff7c2" />
+                  <stop offset="50%" stopColor="#ffb347" />
+                  <stop offset="100%" stopColor="#ff5722" />
+                </radialGradient>
+              </defs>
 
-              {/* Sponge base */}
-              <motion.div
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", bounce: 0.4 }}
-                className="w-56 h-20 rounded-md"
-                style={{
-                  background:
-                    "linear-gradient(180deg, #f4c98c 0%, #e0a96d 50%, #c98b56 100%)",
-                  boxShadow: "0 4px 10px rgba(0,0,0,0.15)",
-                }}
-              />
               {/* Plate */}
-              <div
-                className="w-64 h-3 rounded-full -mt-1"
-                style={{
-                  background:
-                    "linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%)",
-                  boxShadow: "0 4px 6px rgba(0,0,0,0.15)",
-                }}
-              />
-            </div>
+              <ellipse cx="150" cy="240" rx="120" ry="14" fill="url(#plate)" />
+              <ellipse cx="150" cy="236" rx="105" ry="9" fill="#ffffff" opacity="0.4" />
+
+              {/* Sponge — 2 tiers for realism */}
+              <g>
+                {/* Bottom tier */}
+                <rect x="40" y="170" width="220" height="65" rx="6" fill="url(#sponge)" />
+                {/* Crumb dots */}
+                {[55, 95, 135, 175, 215, 245].map((cx, i) => (
+                  <circle key={i} cx={cx} cy={195 + (i % 2) * 18} r="2" fill="#fff" opacity="0.15" />
+                ))}
+                {/* Top tier */}
+                <rect x="70" y="118" width="160" height="58" rx="6" fill="url(#sponge)" />
+                {[85, 120, 155, 190, 220].map((cx, i) => (
+                  <circle key={i} cx={cx} cy={138 + (i % 2) * 16} r="2" fill="#fff" opacity="0.15" />
+                ))}
+              </g>
+
+              {/* Cream layers + drips */}
+              {hasCream && (
+                <g>
+                  {/* Bottom tier cream top */}
+                  <motion.path
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.6 }}
+                    d="M40 170 Q60 158 90 168 T150 165 T210 168 T260 170 L260 178 L40 178 Z"
+                    fill="url(#cream)"
+                  />
+                  {/* Drips bottom tier */}
+                  {[60, 110, 165, 215].map((x, i) => (
+                    <motion.ellipse
+                      key={i}
+                      initial={{ scaleY: 0 }}
+                      animate={{ scaleY: 1 }}
+                      transition={{ delay: 0.3 + i * 0.05, type: "spring" }}
+                      style={{ transformOrigin: `${x}px 178px` }}
+                      cx={x}
+                      cy={183 + (i % 2) * 4}
+                      rx="6"
+                      ry={8 + (i % 2) * 3}
+                      fill="#ffb6c1"
+                    />
+                  ))}
+                  {/* Top tier cream */}
+                  <motion.path
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.6, delay: 0.1 }}
+                    d="M70 118 Q90 108 120 115 T180 113 T230 118 L230 125 L70 125 Z"
+                    fill="url(#cream)"
+                  />
+                  {[88, 135, 175, 215].map((x, i) => (
+                    <motion.ellipse
+                      key={i}
+                      initial={{ scaleY: 0 }}
+                      animate={{ scaleY: 1 }}
+                      transition={{ delay: 0.4 + i * 0.05, type: "spring" }}
+                      style={{ transformOrigin: `${x}px 125px` }}
+                      cx={x}
+                      cy={130 + (i % 2) * 3}
+                      rx="5"
+                      ry={7 + (i % 2) * 2}
+                      fill="#ffb6c1"
+                    />
+                  ))}
+                  {/* Top swirl */}
+                  <ellipse cx="150" cy="115" rx="60" ry="6" fill="#fff5f8" opacity="0.7" />
+                </g>
+              )}
+
+              {/* Cherries on top tier rim */}
+              {cherries.map((c, i) => {
+                // map relative x to top-tier band (70-230)
+                const px = 90 + ((c.x ?? 20 + i * 30) / 100) * 120;
+                return (
+                  <motion.g
+                    key={i}
+                    initial={{ y: -40, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ type: "spring", bounce: 0.6 }}
+                  >
+                    <circle cx={px} cy={108} r="9" fill="#c41e3a" />
+                    <circle cx={px - 2} cy={105} r="3" fill="#ff6b8a" opacity="0.7" />
+                    <path d={`M${px} 100 Q${px + 4} 92 ${px + 8} 90`} stroke="#3a5f1f" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+                    <ellipse cx={px + 9} cy={89} rx="3" ry="1.5" fill="#5a8a3f" transform={`rotate(30 ${px + 9} 89)`} />
+                  </motion.g>
+                );
+              })}
+
+              {/* Candle */}
+              {hasCandle && (
+                <motion.g
+                  initial={{ y: -30, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ type: "spring", bounce: 0.5 }}
+                >
+                  {/* Candle body — pink/white stripes */}
+                  <rect x="143" y="68" width="14" height="44" rx="2" fill="#ffffff" />
+                  <rect x="143" y="72" width="14" height="6" fill="#ff6b8a" />
+                  <rect x="143" y="86" width="14" height="6" fill="#ff6b8a" />
+                  <rect x="143" y="100" width="14" height="6" fill="#ff6b8a" />
+                  {/* Wick */}
+                  <rect x="149" y="62" width="2" height="8" fill="#3a2218" />
+                  {/* Flame */}
+                  <motion.ellipse
+                    cx="150"
+                    cy="58"
+                    rx="6"
+                    ry="10"
+                    fill="url(#flame)"
+                    animate={{ scaleY: [1, 1.15, 0.92, 1.08, 1], scaleX: [1, 0.92, 1.05, 0.95, 1] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                    style={{ transformOrigin: "150px 60px", filter: "drop-shadow(0 0 6px #ffb347)" }}
+                  />
+                  <ellipse cx="150" cy="60" rx="2.5" ry="5" fill="#fff7c2" opacity="0.9" />
+                </motion.g>
+              )}
+            </motion.svg>
           )}
         </div>
 
