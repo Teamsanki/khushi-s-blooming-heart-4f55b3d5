@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
 
 interface CakeBanaoGameProps {
@@ -22,15 +22,52 @@ const STAGES: StageDef[] = [
   { key: "candle", emoji: "🕯️", label: "Candle", count: 1, hint: "Step 4: Birthday candle laga do — almost done! 🕯️" },
 ];
 
+const STORAGE_KEY = "cakeBanaoProgress_v1";
+
+interface SavedProgress {
+  stageIdx: number;
+  stageProgress: number;
+  placed: { stage: StageKey; x?: number }[];
+}
+
 const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
-  const [stageIdx, setStageIdx] = useState(0);
-  const [stageProgress, setStageProgress] = useState(0); // how many of current stage placed
-  const [placed, setPlaced] = useState<{ stage: StageKey; x?: number }[]>([]);
+  // Load saved progress synchronously on first render
+  const initial: SavedProgress = (() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as SavedProgress;
+        if (
+          typeof parsed.stageIdx === "number" &&
+          parsed.stageIdx >= 0 &&
+          parsed.stageIdx < STAGES.length &&
+          Array.isArray(parsed.placed)
+        ) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return { stageIdx: 0, stageProgress: 0, placed: [] };
+  })();
+
+  const [stageIdx, setStageIdx] = useState(initial.stageIdx);
+  const [stageProgress, setStageProgress] = useState(initial.stageProgress);
+  const [placed, setPlaced] = useState<{ stage: StageKey; x?: number }[]>(initial.placed);
   const [hoverDrop, setHoverDrop] = useState(false);
   const [showComplete, setShowComplete] = useState(false);
   const [wrong, setWrong] = useState(false);
   const [stageBurst, setStageBurst] = useState(0);
   const dropRef = useRef<HTMLDivElement>(null);
+
+  // Persist progress after every change
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ stageIdx, stageProgress, placed })
+      );
+    } catch {}
+  }, [stageIdx, stageProgress, placed]);
 
   const stage = STAGES[stageIdx];
   const totalSteps = STAGES.reduce((a, s) => a + s.count, 0);
@@ -57,6 +94,8 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
     if (newProg >= stage.count) {
       if (stageIdx + 1 >= STAGES.length) {
         setShowComplete(true);
+        // Cake fully built — clear saved progress so next visit starts fresh
+        try { localStorage.removeItem(STORAGE_KEY); } catch {}
         setTimeout(onComplete, 2000);
       } else {
         setTimeout(() => {
