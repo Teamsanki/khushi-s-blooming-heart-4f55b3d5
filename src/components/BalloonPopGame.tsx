@@ -33,6 +33,7 @@ const BalloonPopGame = ({ onComplete }: BalloonPopGameProps) => {
   const [step, setStep] = useState(0); // index into TARGET
   const [oops, setOops] = useState(false);
   const [showComplete, setShowComplete] = useState(false);
+  const [burst, setBurst] = useState<{ id: number; x: number; y: number; color: string } | null>(null);
   const stepRef = useRef(step);
   stepRef.current = step;
 
@@ -69,10 +70,13 @@ const BalloonPopGame = ({ onComplete }: BalloonPopGameProps) => {
     return () => clearInterval(interval);
   }, [spawnBalloon, showComplete]);
 
-  const handlePop = (b: Balloon) => {
+  const handlePop = (b: Balloon, evt: React.MouseEvent) => {
     const need = TARGET[stepRef.current];
     setBalloons((prev) => prev.filter((x) => x.id !== b.id));
     if (b.letter === need) {
+      const rect = (evt.currentTarget as HTMLElement).getBoundingClientRect();
+      setBurst({ id: Date.now(), x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, color: b.color });
+      setTimeout(() => setBurst(null), 700);
       const newStep = stepRef.current + 1;
       setStep(newStep);
       if (newStep >= TARGET.length) {
@@ -87,16 +91,27 @@ const BalloonPopGame = ({ onComplete }: BalloonPopGameProps) => {
 
   if (showComplete) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+        {Array.from({ length: 28 }).map((_, i) => (
+          <motion.div
+            key={i}
+            initial={{ y: -20, x: `${Math.random() * 100}vw`, opacity: 1, rotate: 0 }}
+            animate={{ y: "110vh", rotate: 360 * (Math.random() > 0.5 ? 1 : -1) }}
+            transition={{ duration: 1.8 + Math.random() * 1.5, ease: "linear" }}
+            className="absolute text-2xl"
+          >
+            {["🎉", "✨", "💖", "🎈", "⭐", "🌸"][i % 6]}
+          </motion.div>
+        ))}
         <motion.div
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", bounce: 0.5 }}
-          className="text-center"
+          className="text-center relative z-10"
         >
           <div className="text-7xl mb-4">🎉</div>
           <h2 className="text-3xl font-display font-bold text-foreground">KHUSHI!</h2>
-          <p className="text-muted-foreground mt-2">Ab memory match karte hain...</p>
+          <p className="text-muted-foreground mt-2">Pehla game complete! Next: Memory Match 🧠</p>
         </motion.div>
       </div>
     );
@@ -178,7 +193,7 @@ const BalloonPopGame = ({ onComplete }: BalloonPopGameProps) => {
                 opacity: { duration: 0.5 },
                 x: { duration: b.duration / 2, repeat: Infinity, ease: "easeInOut" },
               }}
-              onClick={() => handlePop(b)}
+              onClick={(e) => handlePop(b, e)}
               className="absolute pointer-events-auto cursor-pointer"
               style={{ left: `${b.x}%`, top: 0 }}
               aria-label={`Balloon ${b.letter}`}
@@ -208,6 +223,32 @@ const BalloonPopGame = ({ onComplete }: BalloonPopGameProps) => {
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Pop burst */}
+      <AnimatePresence>
+        {burst && (
+          <div
+            key={burst.id}
+            className="fixed z-30 pointer-events-none"
+            style={{ left: burst.x, top: burst.y }}
+          >
+            {Array.from({ length: 10 }).map((_, i) => {
+              const angle = (i / 10) * Math.PI * 2;
+              const dist = 50 + Math.random() * 25;
+              return (
+                <motion.span
+                  key={i}
+                  initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                  animate={{ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist, opacity: 0, scale: 0.4 }}
+                  transition={{ duration: 0.6, ease: "easeOut" }}
+                  className="absolute block w-2 h-2 rounded-full"
+                  style={{ background: burst.color, left: -4, top: -4 }}
+                />
+              );
+            })}
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
