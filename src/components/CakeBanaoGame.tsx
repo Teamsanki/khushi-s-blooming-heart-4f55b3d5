@@ -57,6 +57,7 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
   const [showComplete, setShowComplete] = useState(false);
   const [wrong, setWrong] = useState(false);
   const [stageBurst, setStageBurst] = useState(0);
+  const [bakePhase, setBakePhase] = useState<"idle" | "rotate" | "oven" | "finale">("idle");
   const dropRef = useRef<HTMLDivElement>(null);
 
   // Persist progress after every change
@@ -93,10 +94,16 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
     setTimeout(() => setStageBurst((b) => Math.max(0, b - 1)), 800);
     if (newProg >= stage.count) {
       if (stageIdx + 1 >= STAGES.length) {
-        setShowComplete(true);
         // Cake fully built — clear saved progress so next visit starts fresh
         try { localStorage.removeItem(STORAGE_KEY); } catch {}
-        setTimeout(onComplete, 2000);
+        // Start cinematic bake sequence: rotate → oven → finale
+        setTimeout(() => setBakePhase("rotate"), 500);
+        setTimeout(() => setBakePhase("oven"), 3000);
+        setTimeout(() => {
+          setBakePhase("finale");
+          setShowComplete(true);
+        }, 6500);
+        setTimeout(onComplete, 12000);
       } else {
         setTimeout(() => {
           setStageIdx(stageIdx + 1);
@@ -115,33 +122,13 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
 
   if (showComplete) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
-        {/* Confetti */}
-        {Array.from({ length: 20 }).map((_, i) => (
-          <motion.div
-            key={i}
-            initial={{ y: -20, x: `${Math.random() * 100}vw`, opacity: 1 }}
-            animate={{ y: "110vh", rotate: 360 * (Math.random() > 0.5 ? 1 : -1) }}
-            transition={{ duration: 2 + Math.random() * 2, ease: "linear" }}
-            className="absolute text-2xl"
-          >
-            {["🎉", "✨", "💖", "🎀", "⭐"][i % 5]}
-          </motion.div>
-        ))}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", bounce: 0.5 }}
-          className="text-center relative z-10"
-        >
-          <div className="text-7xl mb-4">🎂</div>
-          <h2 className="text-3xl font-display font-bold text-foreground">
-            Happy Birthday Khushi!
-          </h2>
-          <p className="text-muted-foreground mt-2">Surprise khul raha hai...</p>
-        </motion.div>
-      </div>
+      <FinaleScreen />
     );
+  }
+
+  // Cinematic bake overlay (rotate + oven)
+  if (bakePhase === "rotate" || bakePhase === "oven") {
+    return <BakeScene phase={bakePhase} />;
   }
 
   return (
