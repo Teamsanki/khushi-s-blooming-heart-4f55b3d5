@@ -11,8 +11,8 @@ interface FlavorOpt {
   id: string;
   name: string;
   emoji: string;
-  color: string; // hex for cream layer
-  accent: string; // drip color
+  color: string;
+  accent: string;
 }
 
 interface TypeOpt {
@@ -52,19 +52,21 @@ const FRUITS: FruitOpt[] = [
   { id: "grape", name: "Grapes", emoji: "🍇", color: "#7b3fa0" },
 ];
 
+const MAX_LAYERS = 3;
+
 const STEP_HINTS: Record<StepKey, string> = {
-  flavor: "Step 1: Cake ka flavour choose karo — drag karke base pe rakho 🎨",
+  flavor: "Step 1: Flavour drag karo — max 3 layers, order ↑↓ se adjust karo 🎨",
   type: "Step 2: Egg ya Eggless — apni pasand select karo 🥚🌿",
-  fruit: "Step 3: Topping ke liye fruit drag karo cake ke upar 🍓",
-  bake: "Step 4: Ab oven me bake karo — Bake button dabao! 🔥",
+  fruit: "Step 3: Topping ke liye 3 fruits drag karo cake ke upar 🍓",
+  bake: "Step 4: Oven me bake karo — perfect doneness pe Take Out dabao! 🔥",
 };
 
 const STEPS: StepKey[] = ["flavor", "type", "fruit", "bake"];
-const STORAGE_KEY = "cakeBanaoProgress_v2";
+const STORAGE_KEY = "cakeBanaoProgress_v3";
 
 interface SavedProgress {
   stepIdx: number;
-  flavor: string | null;
+  flavors: string[];
   type: "egg" | "eggless" | null;
   fruits: { id: string; x: number }[];
 }
@@ -75,41 +77,36 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const p = JSON.parse(raw) as SavedProgress;
-        if (typeof p.stepIdx === "number" && Array.isArray(p.fruits)) return p;
+        if (typeof p.stepIdx === "number" && Array.isArray(p.flavors) && Array.isArray(p.fruits)) return p;
       }
     } catch {}
-    return { stepIdx: 0, flavor: null, type: null, fruits: [] };
+    return { stepIdx: 0, flavors: [], type: null, fruits: [] };
   })();
 
   const [stepIdx, setStepIdx] = useState(initial.stepIdx);
-  const [flavor, setFlavor] = useState<string | null>(initial.flavor);
+  const [flavors, setFlavors] = useState<string[]>(initial.flavors);
   const [type, setType] = useState<"egg" | "eggless" | null>(initial.type);
   const [fruits, setFruits] = useState<{ id: string; x: number }[]>(initial.fruits);
   const [hoverDrop, setHoverDrop] = useState(false);
   const [wrong, setWrong] = useState(false);
   const [burstKey, setBurstKey] = useState(0);
-  const [bakePhase, setBakePhase] = useState<"idle" | "rotate" | "oven" | "finale">("idle");
   const [showComplete, setShowComplete] = useState(false);
+  const [baking, setBaking] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ stepIdx, flavor, type, fruits }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ stepIdx, flavors, type, fruits }));
     } catch {}
-  }, [stepIdx, flavor, type, fruits]);
+  }, [stepIdx, flavors, type, fruits]);
 
   const currentStep = STEPS[stepIdx];
-  const flavorObj = FLAVORS.find((f) => f.id === flavor) ?? null;
+  const flavorObjs = flavors.map((id) => FLAVORS.find((f) => f.id === id)!).filter(Boolean);
 
-  const fireBurst = () => {
-    setBurstKey((k) => k + 1);
-  };
+  const fireBurst = () => setBurstKey((k) => k + 1);
+  const goNext = () => setStepIdx((i) => Math.min(STEPS.length - 1, i + 1));
+  const goBack = () => setStepIdx((i) => Math.max(0, i - 1));
 
-  const advance = () => {
-    setTimeout(() => setStepIdx((i) => Math.min(STEPS.length - 1, i + 1)), 450);
-  };
-
-  // Drag-end handlers
   const handleFlavorDragEnd = (id: string) => (_e: any, info: PanInfo) => {
     setHoverDrop(false);
     if (!dropRef.current) return;
@@ -117,12 +114,10 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
     const inside =
       info.point.x >= r.left && info.point.x <= r.right &&
       info.point.y >= r.top && info.point.y <= r.bottom;
-    if (!inside) {
-      setWrong(true); setTimeout(() => setWrong(false), 500); return;
-    }
-    setFlavor(id);
+    if (!inside) { setWrong(true); setTimeout(() => setWrong(false), 500); return; }
+    if (flavors.length >= MAX_LAYERS) return;
+    setFlavors([...flavors, id]);
     fireBurst();
-    advance();
   };
 
   const handleFruitDragEnd = (id: string) => (_e: any, info: PanInfo) => {
@@ -132,32 +127,51 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
     const inside =
       info.point.x >= r.left && info.point.x <= r.right &&
       info.point.y >= r.top && info.point.y <= r.bottom;
-    if (!inside) {
-      setWrong(true); setTimeout(() => setWrong(false), 500); return;
-    }
+    if (!inside) { setWrong(true); setTimeout(() => setWrong(false), 500); return; }
     const relX = ((info.point.x - r.left) / r.width) * 100;
     const next = [...fruits, { id, x: Math.max(15, Math.min(85, relX)) }];
     setFruits(next);
     fireBurst();
-    if (next.length >= 3) advance();
+    if (next.length >= 3) setTimeout(goNext, 450);
   };
 
   const pickType = (id: "egg" | "eggless") => {
     setType(id);
     fireBurst();
-    advance();
+    setTimeout(goNext, 450);
   };
+
+  const moveLayer = (idx: number, dir: -1 | 1) => {
+    const next = [...flavors];
+    const j = idx + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setFlavors(next);
+  };
+  const removeLayer = (idx: number) => setFlavors(flavors.filter((_, i) => i !== idx));
 
   const startBake = () => {
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
-    setTimeout(() => setBakePhase("rotate"), 200);
-    setTimeout(() => setBakePhase("oven"), 2700);
-    setTimeout(() => { setBakePhase("finale"); setShowComplete(true); }, 6500);
-    setTimeout(onComplete, 12000);
+    setBaking(true);
+  };
+
+  const finishBake = () => {
+    setBaking(false);
+    setShowComplete(true);
+    setTimeout(onComplete, 9000);
   };
 
   if (showComplete) return <FinaleScreen />;
-  if (bakePhase === "rotate" || bakePhase === "oven") return <BakeScene phase={bakePhase} />;
+  if (baking) {
+    return (
+      <BakingScene
+        flavors={flavorObjs}
+        type={type}
+        fruits={fruits}
+        onFinish={finishBake}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
@@ -173,7 +187,6 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden border border-border"
       >
-        {/* Header */}
         <div className="bg-primary p-5 text-center">
           <h2 className="text-lg font-display font-bold text-primary-foreground">
             🎂 Cake Banao Khushi Ke Liye
@@ -194,7 +207,7 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
           </p>
         </div>
 
-        {/* Cake preview / drop area */}
+        {/* Cake area */}
         <div
           ref={dropRef}
           className={`relative h-72 mx-4 mt-4 rounded-xl border-2 border-dashed transition-colors flex items-end justify-center pb-4 overflow-hidden ${
@@ -209,9 +222,8 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
             }}
           />
 
-          <CakeSVG flavor={flavorObj} type={type} fruits={fruits} />
+          <CakeSVG flavors={flavorObjs} type={type} fruits={fruits} />
 
-          {/* Sparkle burst */}
           <AnimatePresence>
             {burstKey > 0 && (
               <div key={burstKey} className="absolute inset-0 pointer-events-none flex items-center justify-center">
@@ -240,23 +252,67 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
         </div>
 
         {/* Step controls */}
-        <div className="p-4 mt-3 min-h-[140px]">
+        <div className="p-4 mt-3 min-h-[170px]">
           {currentStep === "flavor" && (
             <>
-              <p className="text-xs text-muted-foreground mb-3 text-center">
-                Drag karo → cake pe drop karo
+              <p className="text-xs text-muted-foreground mb-2 text-center">
+                {flavors.length}/{MAX_LAYERS} layers · drag flavour → cake pe drop
               </p>
+
+              {/* Stack reorder list */}
+              {flavors.length > 0 && (
+                <div className="mb-3 space-y-1.5">
+                  {flavors.map((id, i) => {
+                    const f = FLAVORS.find((x) => x.id === id)!;
+                    return (
+                      <div
+                        key={`${id}-${i}`}
+                        className="flex items-center gap-2 px-2 py-1 rounded-lg border border-border bg-muted/40"
+                      >
+                        <span className="text-[10px] text-muted-foreground w-10">
+                          Top {flavors.length - i}
+                        </span>
+                        <div
+                          className="w-5 h-5 rounded-full"
+                          style={{ background: f.color, boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)" }}
+                        />
+                        <span className="text-xs font-medium text-foreground flex-1">{f.name}</span>
+                        <button
+                          onClick={() => moveLayer(i, -1)}
+                          disabled={i === 0}
+                          className="w-6 h-6 rounded text-xs bg-background hover:bg-accent/20 disabled:opacity-30"
+                          aria-label="Move up"
+                        >↑</button>
+                        <button
+                          onClick={() => moveLayer(i, 1)}
+                          disabled={i === flavors.length - 1}
+                          className="w-6 h-6 rounded text-xs bg-background hover:bg-accent/20 disabled:opacity-30"
+                          aria-label="Move down"
+                        >↓</button>
+                        <button
+                          onClick={() => removeLayer(i)}
+                          className="w-6 h-6 rounded text-xs bg-background hover:bg-destructive/20 text-destructive"
+                          aria-label="Remove"
+                        >×</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-2">
                 {FLAVORS.map((f) => (
                   <motion.div
                     key={f.id}
-                    drag
+                    drag={flavors.length < MAX_LAYERS}
                     dragSnapToOrigin
                     onDragStart={() => setHoverDrop(true)}
                     onDragEnd={handleFlavorDragEnd(f.id)}
                     whileDrag={{ scale: 1.25, zIndex: 50 }}
                     whileHover={{ scale: 1.05 }}
-                    className="flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-border bg-muted/30 cursor-grab active:cursor-grabbing"
+                    className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-border bg-muted/30 ${
+                      flavors.length < MAX_LAYERS ? "cursor-grab active:cursor-grabbing" : "opacity-40 cursor-not-allowed"
+                    }`}
                   >
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner"
@@ -268,14 +324,21 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
                   </motion.div>
                 ))}
               </div>
+
+              {flavors.length > 0 && (
+                <button
+                  onClick={goNext}
+                  className="mt-3 w-full py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90"
+                >
+                  Next →
+                </button>
+              )}
             </>
           )}
 
           {currentStep === "type" && (
             <>
-              <p className="text-xs text-muted-foreground mb-3 text-center">
-                Tap karke choose karo
-              </p>
+              <p className="text-xs text-muted-foreground mb-3 text-center">Tap karke choose karo</p>
               <div className="grid grid-cols-2 gap-3">
                 {TYPES.map((t) => (
                   <motion.button
@@ -283,7 +346,9 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
                     whileTap={{ scale: 0.95 }}
                     whileHover={{ scale: 1.03 }}
                     onClick={() => pickType(t.id)}
-                    className="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-border bg-muted/30 hover:border-primary hover:bg-primary/5 transition-colors"
+                    className={`flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-colors ${
+                      type === t.id ? "border-primary bg-primary/10" : "border-border bg-muted/30 hover:border-primary"
+                    }`}
                   >
                     <span className="text-3xl">{t.emoji}</span>
                     <span className="text-sm font-semibold text-foreground">{t.name}</span>
@@ -291,6 +356,7 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
                   </motion.button>
                 ))}
               </div>
+              <button onClick={goBack} className="mt-3 text-xs text-muted-foreground underline w-full">← Back</button>
             </>
           )}
 
@@ -316,13 +382,14 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
                   </motion.div>
                 ))}
               </div>
+              <button onClick={goBack} className="mt-3 text-xs text-muted-foreground underline w-full">← Back</button>
             </>
           )}
 
           {currentStep === "bake" && (
             <div className="flex flex-col items-center gap-3">
               <p className="text-xs text-muted-foreground text-center">
-                Cake ready hai — ab oven me bake karo 🔥
+                Tera cake ready hai — ab oven me bake karo 🔥
               </p>
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -334,10 +401,13 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
                 🔥 Bake Now
               </motion.button>
               <div className="text-[11px] text-muted-foreground text-center space-y-0.5">
-                <p>Flavour: <span className="text-foreground font-medium">{flavorObj?.name}</span></p>
+                <p>Layers: <span className="text-foreground font-medium">
+                  {flavorObjs.map((f) => f.name).join(" + ") || "—"}
+                </span></p>
                 <p>Type: <span className="text-foreground font-medium">{type === "egg" ? "With Egg" : "Eggless"}</span></p>
                 <p>Toppings: <span className="text-foreground font-medium">{fruits.map(f => FRUITS.find(x=>x.id===f.id)?.emoji).join(" ")}</span></p>
               </div>
+              <button onClick={goBack} className="text-xs text-muted-foreground underline">← Back</button>
             </div>
           )}
 
@@ -354,18 +424,34 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
 
 export default CakeBanaoGame;
 
-// ============= Cake SVG =============
+// ============= Cake SVG (stacked layers) =============
 const CakeSVG = ({
-  flavor,
+  flavors,
   type,
   fruits,
+  baked = 0, // 0..1 browning factor for oven view
 }: {
-  flavor: FlavorOpt | null;
+  flavors: FlavorOpt[];
   type: "egg" | "eggless" | null;
   fruits: { id: string; x: number }[];
+  baked?: number;
 }) => {
-  const creamColor = flavor?.color ?? "#e8e3df";
-  const dripColor = flavor?.accent ?? "#c9c2bd";
+  // Up to 3 stacked tiers from bottom→top. Layers[0] is bottom.
+  const tiers = [
+    { y: 170, h: 60, x: 40, w: 220 },  // bottom
+    { y: 122, h: 50, x: 70, w: 160 },  // middle
+    { y: 80,  h: 40, x: 100, w: 100 }, // top
+  ];
+
+  // Browning darkens cream & sponge as baked rises (max ~0.5)
+  const darken = (hex: string, amt: number) => {
+    const h = hex.replace("#", "");
+    const r = Math.max(0, parseInt(h.slice(0, 2), 16) - Math.round(255 * amt));
+    const g = Math.max(0, parseInt(h.slice(2, 4), 16) - Math.round(255 * amt));
+    const b = Math.max(0, parseInt(h.slice(4, 6), 16) - Math.round(255 * amt));
+    return `rgb(${r},${g},${b})`;
+  };
+  const bakeAmt = Math.min(0.45, baked * 0.45);
 
   return (
     <motion.svg
@@ -377,18 +463,13 @@ const CakeSVG = ({
     >
       <defs>
         <linearGradient id="sponge2" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#d6a877" />
-          <stop offset="50%" stopColor="#b8854a" />
-          <stop offset="100%" stopColor="#8a5c2e" />
+          <stop offset="0%" stopColor={darken("#d6a877", bakeAmt)} />
+          <stop offset="50%" stopColor={darken("#b8854a", bakeAmt)} />
+          <stop offset="100%" stopColor={darken("#8a5c2e", bakeAmt)} />
         </linearGradient>
         <linearGradient id="plate2" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#f5f5f5" />
           <stop offset="100%" stopColor="#c8c8c8" />
-        </linearGradient>
-        <linearGradient id="creamGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
-          <stop offset="40%" stopColor={creamColor} />
-          <stop offset="100%" stopColor={dripColor} />
         </linearGradient>
       </defs>
 
@@ -396,61 +477,46 @@ const CakeSVG = ({
       <ellipse cx="150" cy="240" rx="120" ry="14" fill="url(#plate2)" />
       <ellipse cx="150" cy="236" rx="105" ry="9" fill="#ffffff" opacity="0.4" />
 
-      {/* PRE-MADE BASE — always visible */}
-      <g>
-        <rect x="40" y="170" width="220" height="65" rx="6" fill="url(#sponge2)" />
-        {[55, 95, 135, 175, 215, 245].map((cx, i) => (
-          <circle key={i} cx={cx} cy={195 + (i % 2) * 18} r="2" fill="#fff" opacity="0.2" />
-        ))}
-        <rect x="70" y="118" width="160" height="58" rx="6" fill="url(#sponge2)" />
-        {[85, 120, 155, 190, 220].map((cx, i) => (
-          <circle key={i} cx={cx} cy={138 + (i % 2) * 16} r="2" fill="#fff" opacity="0.2" />
-        ))}
-      </g>
-
-      {/* Flavor cream layer */}
-      <AnimatePresence>
-        {flavor && (
-          <motion.g
-            key={flavor.id}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, type: "spring" }}
-          >
-            {/* Bottom tier cream */}
-            <path
-              d="M40 170 Q60 158 90 168 T150 165 T210 168 T260 170 L260 180 L40 180 Z"
-              fill="url(#creamGrad)"
-            />
-            {[60, 110, 165, 215].map((x, i) => (
-              <ellipse
-                key={i}
-                cx={x}
-                cy={184 + (i % 2) * 4}
-                rx="6"
-                ry={8 + (i % 2) * 3}
-                fill={dripColor}
-              />
+      {/* Tiers — only render up to flavors.length+1; bottom sponge always shown */}
+      {tiers.map((t, idx) => {
+        // bottom tier always visible; upper tiers only if user added enough layers
+        if (idx > 0 && flavors.length < idx) return null;
+        const f = flavors[idx]; // flavour for this tier's cream (may be undefined for bottom if no flavor)
+        return (
+          <g key={idx}>
+            <rect x={t.x} y={t.y} width={t.w} height={t.h} rx="6" fill="url(#sponge2)" />
+            {/* crumb dots */}
+            {[0.15, 0.3, 0.45, 0.6, 0.75, 0.9].map((p, i) => (
+              <circle key={i} cx={t.x + t.w * p} cy={t.y + 18 + (i % 2) * 18} r="2" fill="#fff" opacity="0.2" />
             ))}
-            {/* Top tier cream */}
-            <path
-              d="M70 118 Q90 108 120 115 T180 113 T230 118 L230 126 L70 126 Z"
-              fill="url(#creamGrad)"
-            />
-            {[88, 135, 175, 215].map((x, i) => (
-              <ellipse
-                key={i}
-                cx={x}
-                cy={131 + (i % 2) * 3}
-                rx="5"
-                ry={7 + (i % 2) * 2}
-                fill={dripColor}
-              />
-            ))}
-            <ellipse cx="150" cy="115" rx="60" ry="6" fill="#ffffff" opacity="0.55" />
-          </motion.g>
-        )}
-      </AnimatePresence>
+            {/* cream on top of this tier */}
+            {f && (
+              <motion.g
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <path
+                  d={`M${t.x} ${t.y} Q${t.x + t.w * 0.2} ${t.y - 12} ${t.x + t.w * 0.4} ${t.y - 4}
+                      T${t.x + t.w * 0.7} ${t.y - 6} T${t.x + t.w} ${t.y} L${t.x + t.w} ${t.y + 10} L${t.x} ${t.y + 10} Z`}
+                  fill={darken(f.color, bakeAmt * 0.7)}
+                />
+                {[0.15, 0.4, 0.65, 0.88].map((p, i) => (
+                  <ellipse
+                    key={i}
+                    cx={t.x + t.w * p}
+                    cy={t.y + 14 + (i % 2) * 4}
+                    rx="5"
+                    ry={7 + (i % 2) * 2}
+                    fill={darken(f.accent, bakeAmt * 0.7)}
+                  />
+                ))}
+                <ellipse cx={t.x + t.w / 2} cy={t.y - 3} rx={t.w * 0.35} ry="5" fill="#ffffff" opacity="0.45" />
+              </motion.g>
+            )}
+          </g>
+        );
+      })}
 
       {/* Egg / Eggless badge */}
       <AnimatePresence>
@@ -469,9 +535,11 @@ const CakeSVG = ({
         )}
       </AnimatePresence>
 
-      {/* Fruit toppings */}
+      {/* Fruits — perch on highest tier */}
       {fruits.map((fr, i) => {
-        const px = 90 + (fr.x / 100) * 120;
+        const topTier = tiers[Math.min(flavors.length, tiers.length - 1)];
+        const px = topTier.x + (fr.x / 100) * topTier.w;
+        const py = topTier.y - 10;
         const meta = FRUITS.find((x) => x.id === fr.id)!;
         return (
           <motion.g
@@ -480,11 +548,9 @@ const CakeSVG = ({
             animate={{ y: 0, opacity: 1 }}
             transition={{ type: "spring", bounce: 0.6 }}
           >
-            <circle cx={px} cy={108} r="10" fill={meta.color} />
-            <circle cx={px - 2.5} cy={105} r="3" fill="#ffffff" opacity="0.55" />
-            <text x={px} y={113} textAnchor="middle" fontSize="11">
-              {meta.emoji}
-            </text>
+            <circle cx={px} cy={py} r="10" fill={meta.color} />
+            <circle cx={px - 2.5} cy={py - 3} r="3" fill="#ffffff" opacity="0.55" />
+            <text x={px} y={py + 5} textAnchor="middle" fontSize="11">{meta.emoji}</text>
           </motion.g>
         );
       })}
@@ -492,71 +558,168 @@ const CakeSVG = ({
   );
 };
 
-// ============= Bake Scene =============
-const BakeScene = ({ phase }: { phase: "rotate" | "oven" }) => {
+// ============= Baking Scene with real cake + timer =============
+const BAKE_DURATION_MS = 8000;
+
+type Doneness = "raw" | "baking" | "ready" | "overbaked";
+
+const donenessFor = (pct: number): Doneness => {
+  if (pct < 35) return "raw";
+  if (pct < 70) return "baking";
+  if (pct < 92) return "ready";
+  return "overbaked";
+};
+
+const DONENESS_META: Record<Doneness, { label: string; emoji: string; color: string; tip: string }> = {
+  raw: { label: "Undercooked", emoji: "🥶", color: "#7a8edb", tip: "Abhi kachha hai — thoda aur ruk!" },
+  baking: { label: "Baking…", emoji: "🔥", color: "#ff8c42", tip: "Sundar khushboo aa rahi hai…" },
+  ready: { label: "Perfectly Ready!", emoji: "✨", color: "#4caf50", tip: "Abhi nikaalo — perfect doneness!" },
+  overbaked: { label: "Overbaked", emoji: "🥵", color: "#c2410c", tip: "Thoda jal gaya — jaldi nikaalo!" },
+};
+
+const BakingScene = ({
+  flavors,
+  type,
+  fruits,
+  onFinish,
+}: {
+  flavors: FlavorOpt[];
+  type: "egg" | "eggless" | null;
+  fruits: { id: string; x: number }[];
+  onFinish: () => void;
+}) => {
+  const [elapsed, setElapsed] = useState(0);
+  const [done, setDone] = useState<Doneness | null>(null);
+  const startRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    if (done) return;
+    const id = setInterval(() => {
+      const e = Date.now() - startRef.current;
+      setElapsed(e);
+      if (e >= BAKE_DURATION_MS + 2500) {
+        // auto take out as overbaked
+        setDone("overbaked");
+        clearInterval(id);
+      }
+    }, 80);
+    return () => clearInterval(id);
+  }, [done]);
+
+  const pct = Math.min(100, (elapsed / BAKE_DURATION_MS) * 100);
+  const live = donenessFor(pct);
+  const current = done ?? live;
+  const meta = DONENESS_META[current];
+  const baked = Math.min(1, elapsed / BAKE_DURATION_MS);
+
+  const handleTakeOut = () => {
+    if (done) return;
+    setDone(live);
+    setTimeout(onFinish, 2200);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-900 via-orange-950 to-black p-4 relative overflow-hidden">
       <div
         className="absolute inset-0 opacity-30"
         style={{ background: "radial-gradient(circle at 50% 60%, #ff8c42 0%, transparent 60%)" }}
       />
-      <div className="text-center relative z-10">
+
+      <div className="relative z-10 w-full max-w-md flex flex-col items-center">
         <motion.p
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-white/90 font-display text-xl mb-6"
+          className="text-white/90 font-display text-xl mb-4 text-center"
         >
-          {phase === "rotate" ? "Cake oven me jaa raha hai... ✨" : "Oven me pak raha hai... 🔥"}
+          Tera cake oven me pak raha hai…
         </motion.p>
 
-        {phase === "oven" && (
-          <div className="relative mx-auto" style={{ width: 320, height: 280 }}>
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-zinc-700 to-zinc-900 border-4 border-zinc-600 shadow-2xl" />
-            <div
-              className="absolute inset-4 rounded-xl overflow-hidden border-2 border-amber-700"
-              style={{ background: "radial-gradient(ellipse at center, #ff7a18 0%, #c2410c 50%, #4a1d05 100%)" }}
-            >
-              <motion.div
-                className="absolute inset-0"
-                animate={{ opacity: [0.6, 1, 0.7, 0.95, 0.6] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                style={{ background: "radial-gradient(circle at 50% 80%, #ffd700 0%, transparent 60%)" }}
-              />
-              <motion.div
-                className="absolute left-1/2 top-1/2 text-6xl"
-                style={{ translateX: "-50%", translateY: "-50%" }}
-                animate={{ rotate: 360 }}
-                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-              >
-                🎂
-              </motion.div>
-              {Array.from({ length: 14 }).map((_, i) => (
-                <motion.span
-                  key={i}
-                  className="absolute text-xs"
-                  initial={{ x: `${20 + Math.random() * 60}%`, y: "100%", opacity: 0 }}
-                  animate={{ y: "-20%", opacity: [0, 1, 0] }}
-                  transition={{ duration: 1.5 + Math.random(), repeat: Infinity, delay: Math.random() * 2 }}
-                >
-                  ✨
-                </motion.span>
-              ))}
-            </div>
-            <div className="absolute -bottom-2 left-6 w-4 h-4 rounded-full bg-zinc-400 border border-zinc-700" />
-            <div className="absolute -bottom-2 right-6 w-4 h-4 rounded-full bg-zinc-400 border border-zinc-700" />
-          </div>
-        )}
-
-        {phase === "rotate" && (
-          <motion.div
-            className="text-8xl mx-auto"
-            animate={{ rotateY: 360, scale: [1, 1.1, 1] }}
-            transition={{ duration: 2.5, ease: "easeInOut" }}
-            style={{ transformStyle: "preserve-3d" }}
+        {/* Oven */}
+        <div className="relative mx-auto" style={{ width: 340, height: 320 }}>
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-zinc-700 to-zinc-900 border-4 border-zinc-600 shadow-2xl" />
+          <div
+            className="absolute inset-4 rounded-xl overflow-hidden border-2 border-amber-700 flex items-end justify-center"
+            style={{ background: "radial-gradient(ellipse at center, #ff7a18 0%, #c2410c 50%, #4a1d05 100%)" }}
           >
-            🎂
-          </motion.div>
-        )}
+            <motion.div
+              className="absolute inset-0"
+              animate={{ opacity: [0.5, 1, 0.7, 0.95, 0.5] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              style={{ background: "radial-gradient(circle at 50% 80%, #ffd700 0%, transparent 60%)" }}
+            />
+
+            {/* Real cake inside oven, slowly browning + gentle rotation */}
+            <motion.div
+              className="relative z-10"
+              animate={{ rotate: done ? 0 : [0, 4, -4, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                filter: `brightness(${1 - baked * 0.25}) sepia(${baked * 0.6})`,
+              }}
+            >
+              <CakeSVG flavors={flavors} type={type} fruits={fruits} baked={baked} />
+            </motion.div>
+
+            {/* Sparks */}
+            {Array.from({ length: 12 }).map((_, i) => (
+              <motion.span
+                key={i}
+                className="absolute text-xs"
+                initial={{ x: `${20 + Math.random() * 60}%`, y: "100%", opacity: 0 }}
+                animate={{ y: "-20%", opacity: [0, 1, 0] }}
+                transition={{ duration: 1.5 + Math.random(), repeat: Infinity, delay: Math.random() * 2 }}
+              >
+                ✨
+              </motion.span>
+            ))}
+          </div>
+          <div className="absolute -bottom-2 left-6 w-4 h-4 rounded-full bg-zinc-400 border border-zinc-700" />
+          <div className="absolute -bottom-2 right-6 w-4 h-4 rounded-full bg-zinc-400 border border-zinc-700" />
+        </div>
+
+        {/* Timer + progress */}
+        <div className="w-full mt-5 px-2">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-white/80 text-xs font-medium">
+              {(elapsed / 1000).toFixed(1)}s / {(BAKE_DURATION_MS / 1000).toFixed(0)}s
+            </span>
+            <motion.span
+              key={current}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="text-xs font-bold px-2 py-0.5 rounded-full"
+              style={{ background: `${meta.color}22`, color: meta.color, border: `1px solid ${meta.color}` }}
+            >
+              {meta.emoji} {meta.label}
+            </motion.span>
+          </div>
+          <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden">
+            <motion.div
+              className="h-full"
+              style={{
+                width: `${pct}%`,
+                background: `linear-gradient(90deg, #ffd54f, ${meta.color})`,
+                boxShadow: `0 0 12px ${meta.color}`,
+              }}
+            />
+          </div>
+          <p className="text-center text-white/70 text-xs mt-2 italic">{meta.tip}</p>
+        </div>
+
+        {/* Take out button */}
+        <motion.button
+          whileHover={{ scale: done ? 1 : 1.05 }}
+          whileTap={{ scale: done ? 1 : 0.95 }}
+          onClick={handleTakeOut}
+          disabled={!!done}
+          className="mt-4 px-8 py-3 rounded-full font-bold text-white shadow-lg disabled:opacity-60"
+          style={{
+            background: `linear-gradient(135deg, ${meta.color}, #ff5722)`,
+            boxShadow: `0 8px 24px ${meta.color}66`,
+          }}
+        >
+          {done ? `${meta.emoji} ${meta.label}` : "🧤 Take Out"}
+        </motion.button>
       </div>
     </div>
   );
