@@ -5,131 +5,159 @@ interface CakeBanaoGameProps {
   onComplete: () => void;
 }
 
-type StageKey = "base" | "cream" | "cherry" | "candle";
+type StepKey = "flavor" | "type" | "fruit" | "bake";
 
-interface StageDef {
-  key: StageKey;
+interface FlavorOpt {
+  id: string;
+  name: string;
   emoji: string;
-  label: string;
-  count: number;
-  hint: string;
+  color: string; // hex for cream layer
+  accent: string; // drip color
 }
 
-const STAGES: StageDef[] = [
-  { key: "base", emoji: "🟫", label: "Sponge", count: 1, hint: "Step 1: Plate pe chocolate sponge base drag karo 🍫" },
-  { key: "cream", emoji: "🍦", label: "Cream", count: 1, hint: "Step 2: Sponge ke upar soft pink cream layer 🍦" },
-  { key: "cherry", emoji: "🍒", label: "Cherries", count: 3, hint: "Step 3: 3 cherries cake ke top pe sajao 🍒🍒🍒" },
-  { key: "candle", emoji: "🕯️", label: "Candle", count: 1, hint: "Step 4: Birthday candle laga do — almost done! 🕯️" },
+interface TypeOpt {
+  id: "egg" | "eggless";
+  name: string;
+  emoji: string;
+  desc: string;
+}
+
+interface FruitOpt {
+  id: string;
+  name: string;
+  emoji: string;
+  color: string;
+}
+
+const FLAVORS: FlavorOpt[] = [
+  { id: "chocolate", name: "Chocolate", emoji: "🍫", color: "#5a2e18", accent: "#3d1d10" },
+  { id: "vanilla", name: "Vanilla", emoji: "🍦", color: "#fff5d6", accent: "#f0d99b" },
+  { id: "strawberry", name: "Strawberry", emoji: "🍓", color: "#ff9fb8", accent: "#e0738f" },
+  { id: "butterscotch", name: "Butterscotch", emoji: "🍯", color: "#e6a64a", accent: "#b87b2a" },
+  { id: "redvelvet", name: "Red Velvet", emoji: "❤️", color: "#c8324a", accent: "#8e1f33" },
+  { id: "blueberry", name: "Blueberry", emoji: "🫐", color: "#7a8edb", accent: "#4f64b0" },
 ];
 
-const STORAGE_KEY = "cakeBanaoProgress_v1";
+const TYPES: TypeOpt[] = [
+  { id: "eggless", name: "Eggless", emoji: "🌿", desc: "Pure veg — soft & fluffy" },
+  { id: "egg", name: "With Egg", emoji: "🥚", desc: "Classic rich texture" },
+];
+
+const FRUITS: FruitOpt[] = [
+  { id: "cherry", name: "Cherry", emoji: "🍒", color: "#c41e3a" },
+  { id: "strawberry", name: "Strawberry", emoji: "🍓", color: "#ff4d6d" },
+  { id: "blueberry", name: "Blueberry", emoji: "🫐", color: "#4f64b0" },
+  { id: "kiwi", name: "Kiwi", emoji: "🥝", color: "#8bc34a" },
+  { id: "mango", name: "Mango", emoji: "🥭", color: "#ffb300" },
+  { id: "grape", name: "Grapes", emoji: "🍇", color: "#7b3fa0" },
+];
+
+const STEP_HINTS: Record<StepKey, string> = {
+  flavor: "Step 1: Cake ka flavour choose karo — drag karke base pe rakho 🎨",
+  type: "Step 2: Egg ya Eggless — apni pasand select karo 🥚🌿",
+  fruit: "Step 3: Topping ke liye fruit drag karo cake ke upar 🍓",
+  bake: "Step 4: Ab oven me bake karo — Bake button dabao! 🔥",
+};
+
+const STEPS: StepKey[] = ["flavor", "type", "fruit", "bake"];
+const STORAGE_KEY = "cakeBanaoProgress_v2";
 
 interface SavedProgress {
-  stageIdx: number;
-  stageProgress: number;
-  placed: { stage: StageKey; x?: number }[];
+  stepIdx: number;
+  flavor: string | null;
+  type: "egg" | "eggless" | null;
+  fruits: { id: string; x: number }[];
 }
 
 const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
-  // Load saved progress synchronously on first render
   const initial: SavedProgress = (() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw) as SavedProgress;
-        if (
-          typeof parsed.stageIdx === "number" &&
-          parsed.stageIdx >= 0 &&
-          parsed.stageIdx < STAGES.length &&
-          Array.isArray(parsed.placed)
-        ) {
-          return parsed;
-        }
+        const p = JSON.parse(raw) as SavedProgress;
+        if (typeof p.stepIdx === "number" && Array.isArray(p.fruits)) return p;
       }
     } catch {}
-    return { stageIdx: 0, stageProgress: 0, placed: [] };
+    return { stepIdx: 0, flavor: null, type: null, fruits: [] };
   })();
 
-  const [stageIdx, setStageIdx] = useState(initial.stageIdx);
-  const [stageProgress, setStageProgress] = useState(initial.stageProgress);
-  const [placed, setPlaced] = useState<{ stage: StageKey; x?: number }[]>(initial.placed);
+  const [stepIdx, setStepIdx] = useState(initial.stepIdx);
+  const [flavor, setFlavor] = useState<string | null>(initial.flavor);
+  const [type, setType] = useState<"egg" | "eggless" | null>(initial.type);
+  const [fruits, setFruits] = useState<{ id: string; x: number }[]>(initial.fruits);
   const [hoverDrop, setHoverDrop] = useState(false);
-  const [showComplete, setShowComplete] = useState(false);
   const [wrong, setWrong] = useState(false);
-  const [stageBurst, setStageBurst] = useState(0);
+  const [burstKey, setBurstKey] = useState(0);
   const [bakePhase, setBakePhase] = useState<"idle" | "rotate" | "oven" | "finale">("idle");
+  const [showComplete, setShowComplete] = useState(false);
   const dropRef = useRef<HTMLDivElement>(null);
 
-  // Persist progress after every change
   useEffect(() => {
     try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ stageIdx, stageProgress, placed })
-      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ stepIdx, flavor, type, fruits }));
     } catch {}
-  }, [stageIdx, stageProgress, placed]);
+  }, [stepIdx, flavor, type, fruits]);
 
-  const stage = STAGES[stageIdx];
-  const totalSteps = STAGES.reduce((a, s) => a + s.count, 0);
-  const doneSteps = placed.length;
+  const currentStep = STEPS[stepIdx];
+  const flavorObj = FLAVORS.find((f) => f.id === flavor) ?? null;
 
-  const handleDragEnd = (_e: any, info: PanInfo) => {
-    setHoverDrop(false);
-    if (!dropRef.current) return;
-    const rect = dropRef.current.getBoundingClientRect();
-    const { x, y } = info.point;
-    const inside = x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
-    if (!inside) {
-      setWrong(true);
-      setTimeout(() => setWrong(false), 500);
-      return;
-    }
-    // For cherries, record relative x to scatter them
-    const relX = stage.key === "cherry" ? ((x - rect.left) / rect.width) * 100 : undefined;
-    const next = [...placed, { stage: stage.key, x: relX }];
-    setPlaced(next);
-    const newProg = stageProgress + 1;
-    setStageBurst((b) => b + 1);
-    setTimeout(() => setStageBurst((b) => Math.max(0, b - 1)), 800);
-    if (newProg >= stage.count) {
-      if (stageIdx + 1 >= STAGES.length) {
-        // Cake fully built — clear saved progress so next visit starts fresh
-        try { localStorage.removeItem(STORAGE_KEY); } catch {}
-        // Start cinematic bake sequence: rotate → oven → finale
-        setTimeout(() => setBakePhase("rotate"), 500);
-        setTimeout(() => setBakePhase("oven"), 3000);
-        setTimeout(() => {
-          setBakePhase("finale");
-          setShowComplete(true);
-        }, 6500);
-        setTimeout(onComplete, 12000);
-      } else {
-        setTimeout(() => {
-          setStageIdx(stageIdx + 1);
-          setStageProgress(0);
-        }, 400);
-      }
-    } else {
-      setStageProgress(newProg);
-    }
+  const fireBurst = () => {
+    setBurstKey((k) => k + 1);
   };
 
-  const hasBase = placed.some((p) => p.stage === "base");
-  const hasCream = placed.some((p) => p.stage === "cream");
-  const cherries = placed.filter((p) => p.stage === "cherry");
-  const hasCandle = placed.some((p) => p.stage === "candle");
+  const advance = () => {
+    setTimeout(() => setStepIdx((i) => Math.min(STEPS.length - 1, i + 1)), 450);
+  };
 
-  if (showComplete) {
-    return (
-      <FinaleScreen />
-    );
-  }
+  // Drag-end handlers
+  const handleFlavorDragEnd = (id: string) => (_e: any, info: PanInfo) => {
+    setHoverDrop(false);
+    if (!dropRef.current) return;
+    const r = dropRef.current.getBoundingClientRect();
+    const inside =
+      info.point.x >= r.left && info.point.x <= r.right &&
+      info.point.y >= r.top && info.point.y <= r.bottom;
+    if (!inside) {
+      setWrong(true); setTimeout(() => setWrong(false), 500); return;
+    }
+    setFlavor(id);
+    fireBurst();
+    advance();
+  };
 
-  // Cinematic bake overlay (rotate + oven)
-  if (bakePhase === "rotate" || bakePhase === "oven") {
-    return <BakeScene phase={bakePhase} />;
-  }
+  const handleFruitDragEnd = (id: string) => (_e: any, info: PanInfo) => {
+    setHoverDrop(false);
+    if (!dropRef.current) return;
+    const r = dropRef.current.getBoundingClientRect();
+    const inside =
+      info.point.x >= r.left && info.point.x <= r.right &&
+      info.point.y >= r.top && info.point.y <= r.bottom;
+    if (!inside) {
+      setWrong(true); setTimeout(() => setWrong(false), 500); return;
+    }
+    const relX = ((info.point.x - r.left) / r.width) * 100;
+    const next = [...fruits, { id, x: Math.max(15, Math.min(85, relX)) }];
+    setFruits(next);
+    fireBurst();
+    if (next.length >= 3) advance();
+  };
+
+  const pickType = (id: "egg" | "eggless") => {
+    setType(id);
+    fireBurst();
+    advance();
+  };
+
+  const startBake = () => {
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    setTimeout(() => setBakePhase("rotate"), 200);
+    setTimeout(() => setBakePhase("oven"), 2700);
+    setTimeout(() => { setBakePhase("finale"); setShowComplete(true); }, 6500);
+    setTimeout(onComplete, 12000);
+  };
+
+  if (showComplete) return <FinaleScreen />;
+  if (bakePhase === "rotate" || bakePhase === "oven") return <BakeScene phase={bakePhase} />;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
@@ -145,31 +173,34 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
         transition={{ duration: 0.4 }}
         className="w-full max-w-md bg-card rounded-2xl shadow-2xl overflow-hidden border border-border"
       >
+        {/* Header */}
         <div className="bg-primary p-5 text-center">
           <h2 className="text-lg font-display font-bold text-primary-foreground">
             🎂 Cake Banao Khushi Ke Liye
           </h2>
-          <p className="text-primary-foreground/70 text-xs mt-2">{stage.hint}</p>
+          <p className="text-primary-foreground/80 text-xs mt-2">{STEP_HINTS[currentStep]}</p>
           <div className="flex gap-1.5 justify-center mt-3">
-            {Array.from({ length: totalSteps }).map((_, i) => (
+            {STEPS.map((s, i) => (
               <div
-                key={i}
-                className={`h-2 flex-1 max-w-8 rounded-full transition-all duration-300 ${
-                  i < doneSteps ? "bg-accent" : "bg-primary-foreground/30"
+                key={s}
+                className={`h-2 flex-1 max-w-10 rounded-full transition-all duration-300 ${
+                  i < stepIdx ? "bg-accent" : i === stepIdx ? "bg-accent/70 animate-pulse" : "bg-primary-foreground/30"
                 }`}
               />
             ))}
           </div>
+          <p className="text-primary-foreground/60 text-[10px] mt-2 tracking-wider uppercase">
+            Step {stepIdx + 1} / {STEPS.length}
+          </p>
         </div>
 
-        {/* Drop area */}
+        {/* Cake preview / drop area */}
         <div
           ref={dropRef}
-          className={`relative h-80 mx-4 mt-4 rounded-xl border-2 border-dashed transition-colors flex items-end justify-center pb-6 overflow-hidden ${
+          className={`relative h-72 mx-4 mt-4 rounded-xl border-2 border-dashed transition-colors flex items-end justify-center pb-4 overflow-hidden ${
             hoverDrop ? "border-primary bg-primary/5" : "border-border bg-muted/30"
           }`}
         >
-          {/* Soft table backdrop */}
           <div
             className="absolute inset-0 -z-10"
             style={{
@@ -177,29 +208,26 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
                 "linear-gradient(180deg, hsl(var(--muted)/0.2) 0%, hsl(var(--muted)/0.5) 100%)",
             }}
           />
-          {!hasBase && (
-            <p className="absolute inset-0 flex items-center justify-center text-muted-foreground/60 text-sm">
-              ⬇️ Tray se ingredient yahan drop karo
-            </p>
-          )}
 
-          {/* Per-step sparkle burst */}
+          <CakeSVG flavor={flavorObj} type={type} fruits={fruits} />
+
+          {/* Sparkle burst */}
           <AnimatePresence>
-            {stageBurst > 0 && (
-              <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                {Array.from({ length: 12 }).map((_, i) => {
-                  const angle = (i / 12) * Math.PI * 2;
+            {burstKey > 0 && (
+              <div key={burstKey} className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                {Array.from({ length: 14 }).map((_, i) => {
+                  const angle = (i / 14) * Math.PI * 2;
                   return (
                     <motion.span
-                      key={`${stageIdx}-${stageProgress}-${i}`}
+                      key={i}
                       initial={{ x: 0, y: 0, opacity: 1, scale: 0.6 }}
                       animate={{
-                        x: Math.cos(angle) * 80,
-                        y: Math.sin(angle) * 80 - 30,
+                        x: Math.cos(angle) * 90,
+                        y: Math.sin(angle) * 90 - 30,
                         opacity: 0,
-                        scale: 1.2,
+                        scale: 1.3,
                       }}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
+                      transition={{ duration: 0.9, ease: "easeOut" }}
                       className="absolute text-lg"
                     >
                       {["✨", "💖", "⭐", "🌸"][i % 4]}
@@ -209,206 +237,110 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
               </div>
             )}
           </AnimatePresence>
-
-          {/* Realistic cake */}
-          {hasBase && (
-            <motion.svg
-              viewBox="0 0 300 260"
-              className="w-72 h-72 drop-shadow-xl"
-              initial={{ scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", bounce: 0.4 }}
-            >
-              <defs>
-                <linearGradient id="sponge" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6b3a1f" />
-                  <stop offset="50%" stopColor="#5a2e18" />
-                  <stop offset="100%" stopColor="#3d1d10" />
-                </linearGradient>
-                <linearGradient id="cream" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#fff5f8" />
-                  <stop offset="50%" stopColor="#ffd1dc" />
-                  <stop offset="100%" stopColor="#ff9fb8" />
-                </linearGradient>
-                <linearGradient id="plate" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f5f5f5" />
-                  <stop offset="100%" stopColor="#c8c8c8" />
-                </linearGradient>
-                <radialGradient id="flame" cx="50%" cy="30%" r="60%">
-                  <stop offset="0%" stopColor="#fff7c2" />
-                  <stop offset="50%" stopColor="#ffb347" />
-                  <stop offset="100%" stopColor="#ff5722" />
-                </radialGradient>
-              </defs>
-
-              {/* Plate */}
-              <ellipse cx="150" cy="240" rx="120" ry="14" fill="url(#plate)" />
-              <ellipse cx="150" cy="236" rx="105" ry="9" fill="#ffffff" opacity="0.4" />
-
-              {/* Sponge — 2 tiers for realism */}
-              <g>
-                {/* Bottom tier */}
-                <rect x="40" y="170" width="220" height="65" rx="6" fill="url(#sponge)" />
-                {/* Crumb dots */}
-                {[55, 95, 135, 175, 215, 245].map((cx, i) => (
-                  <circle key={i} cx={cx} cy={195 + (i % 2) * 18} r="2" fill="#fff" opacity="0.15" />
-                ))}
-                {/* Top tier */}
-                <rect x="70" y="118" width="160" height="58" rx="6" fill="url(#sponge)" />
-                {[85, 120, 155, 190, 220].map((cx, i) => (
-                  <circle key={i} cx={cx} cy={138 + (i % 2) * 16} r="2" fill="#fff" opacity="0.15" />
-                ))}
-              </g>
-
-              {/* Cream layers + drips */}
-              {hasCream && (
-                <g>
-                  {/* Bottom tier cream top */}
-                  <motion.path
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 0.6 }}
-                    d="M40 170 Q60 158 90 168 T150 165 T210 168 T260 170 L260 178 L40 178 Z"
-                    fill="url(#cream)"
-                  />
-                  {/* Drips bottom tier */}
-                  {[60, 110, 165, 215].map((x, i) => (
-                    <motion.ellipse
-                      key={i}
-                      initial={{ scaleY: 0 }}
-                      animate={{ scaleY: 1 }}
-                      transition={{ delay: 0.3 + i * 0.05, type: "spring" }}
-                      style={{ transformOrigin: `${x}px 178px` }}
-                      cx={x}
-                      cy={183 + (i % 2) * 4}
-                      rx="6"
-                      ry={8 + (i % 2) * 3}
-                      fill="#ffb6c1"
-                    />
-                  ))}
-                  {/* Top tier cream */}
-                  <motion.path
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
-                    d="M70 118 Q90 108 120 115 T180 113 T230 118 L230 125 L70 125 Z"
-                    fill="url(#cream)"
-                  />
-                  {[88, 135, 175, 215].map((x, i) => (
-                    <motion.ellipse
-                      key={i}
-                      initial={{ scaleY: 0 }}
-                      animate={{ scaleY: 1 }}
-                      transition={{ delay: 0.4 + i * 0.05, type: "spring" }}
-                      style={{ transformOrigin: `${x}px 125px` }}
-                      cx={x}
-                      cy={130 + (i % 2) * 3}
-                      rx="5"
-                      ry={7 + (i % 2) * 2}
-                      fill="#ffb6c1"
-                    />
-                  ))}
-                  {/* Top swirl */}
-                  <ellipse cx="150" cy="115" rx="60" ry="6" fill="#fff5f8" opacity="0.7" />
-                </g>
-              )}
-
-              {/* Cherries on top tier rim */}
-              {cherries.map((c, i) => {
-                // map relative x to top-tier band (70-230)
-                const px = 90 + ((c.x ?? 20 + i * 30) / 100) * 120;
-                return (
-                  <motion.g
-                    key={i}
-                    initial={{ y: -40, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ type: "spring", bounce: 0.6 }}
-                  >
-                    <circle cx={px} cy={108} r="9" fill="#c41e3a" />
-                    <circle cx={px - 2} cy={105} r="3" fill="#ff6b8a" opacity="0.7" />
-                    <path d={`M${px} 100 Q${px + 4} 92 ${px + 8} 90`} stroke="#3a5f1f" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-                    <ellipse cx={px + 9} cy={89} rx="3" ry="1.5" fill="#5a8a3f" transform={`rotate(30 ${px + 9} 89)`} />
-                  </motion.g>
-                );
-              })}
-
-              {/* Candle */}
-              {hasCandle && (
-                <motion.g
-                  initial={{ y: -30, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ type: "spring", bounce: 0.5 }}
-                >
-                  {/* Candle body — pink/white stripes */}
-                  <rect x="143" y="68" width="14" height="44" rx="2" fill="#ffffff" />
-                  <rect x="143" y="72" width="14" height="6" fill="#ff6b8a" />
-                  <rect x="143" y="86" width="14" height="6" fill="#ff6b8a" />
-                  <rect x="143" y="100" width="14" height="6" fill="#ff6b8a" />
-                  {/* Wick */}
-                  <rect x="149" y="62" width="2" height="8" fill="#3a2218" />
-                  {/* Flame */}
-                  <motion.ellipse
-                    cx="150"
-                    cy="58"
-                    rx="6"
-                    ry="10"
-                    fill="url(#flame)"
-                    animate={{ scaleY: [1, 1.15, 0.92, 1.08, 1], scaleX: [1, 0.92, 1.05, 0.95, 1] }}
-                    transition={{ duration: 1.2, repeat: Infinity }}
-                    style={{ transformOrigin: "150px 60px", filter: "drop-shadow(0 0 6px #ffb347)" }}
-                  />
-                  <ellipse cx="150" cy="60" rx="2.5" ry="5" fill="#fff7c2" opacity="0.9" />
-                </motion.g>
-              )}
-            </motion.svg>
-          )}
         </div>
 
-        {/* Tray */}
-        <div className="p-4 mt-3">
-          <p className="text-xs text-muted-foreground mb-2 text-center font-medium">
-            Step {stageIdx + 1}/{STAGES.length}: <span className="text-foreground">{stage.label}</span>
-            {stage.count > 1 && ` (${stageProgress}/${stage.count})`}
-          </p>
-          <div className="flex justify-center gap-3">
-            {STAGES.map((s, i) => {
-              const isCurrent = i === stageIdx;
-              const isDone = i < stageIdx;
-              return (
-                <div
-                  key={s.key}
-                  className={`relative rounded-xl border-2 transition-all ${
-                    isCurrent
-                      ? "border-primary bg-primary/5"
-                      : isDone
-                      ? "border-success/40 bg-success/5"
-                      : "border-border bg-muted/30 opacity-40"
-                  }`}
-                  style={{ width: 56, height: 56 }}
-                >
-                  {isCurrent ? (
-                    <motion.div
-                      key={`${s.key}-${stageProgress}`}
-                      drag
-                      dragSnapToOrigin
-                      onDragStart={() => setHoverDrop(true)}
-                      onDragEnd={handleDragEnd}
-                      whileDrag={{ scale: 1.3, zIndex: 50 }}
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ scale: { duration: 1.2, repeat: Infinity } }}
-                      className="absolute inset-0 flex items-center justify-center text-3xl cursor-grab active:cursor-grabbing"
+        {/* Step controls */}
+        <div className="p-4 mt-3 min-h-[140px]">
+          {currentStep === "flavor" && (
+            <>
+              <p className="text-xs text-muted-foreground mb-3 text-center">
+                Drag karo → cake pe drop karo
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {FLAVORS.map((f) => (
+                  <motion.div
+                    key={f.id}
+                    drag
+                    dragSnapToOrigin
+                    onDragStart={() => setHoverDrop(true)}
+                    onDragEnd={handleFlavorDragEnd(f.id)}
+                    whileDrag={{ scale: 1.25, zIndex: 50 }}
+                    whileHover={{ scale: 1.05 }}
+                    className="flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-border bg-muted/30 cursor-grab active:cursor-grabbing"
+                  >
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner"
+                      style={{ background: f.color }}
                     >
-                      {s.emoji}
-                    </motion.div>
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-2xl">
-                      {isDone ? "✓" : s.emoji}
+                      {f.emoji}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                    <span className="text-[10px] font-medium text-foreground">{f.name}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {currentStep === "type" && (
+            <>
+              <p className="text-xs text-muted-foreground mb-3 text-center">
+                Tap karke choose karo
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {TYPES.map((t) => (
+                  <motion.button
+                    key={t.id}
+                    whileTap={{ scale: 0.95 }}
+                    whileHover={{ scale: 1.03 }}
+                    onClick={() => pickType(t.id)}
+                    className="flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-border bg-muted/30 hover:border-primary hover:bg-primary/5 transition-colors"
+                  >
+                    <span className="text-3xl">{t.emoji}</span>
+                    <span className="text-sm font-semibold text-foreground">{t.name}</span>
+                    <span className="text-[10px] text-muted-foreground text-center">{t.desc}</span>
+                  </motion.button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {currentStep === "fruit" && (
+            <>
+              <p className="text-xs text-muted-foreground mb-3 text-center">
+                {fruits.length}/3 fruits — drag karke top pe rakho
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {FRUITS.map((fr) => (
+                  <motion.div
+                    key={fr.id}
+                    drag
+                    dragSnapToOrigin
+                    onDragStart={() => setHoverDrop(true)}
+                    onDragEnd={handleFruitDragEnd(fr.id)}
+                    whileDrag={{ scale: 1.3, zIndex: 50 }}
+                    whileHover={{ scale: 1.05 }}
+                    className="flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-border bg-muted/30 cursor-grab active:cursor-grabbing"
+                  >
+                    <span className="text-2xl">{fr.emoji}</span>
+                    <span className="text-[10px] font-medium text-foreground">{fr.name}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {currentStep === "bake" && (
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-xs text-muted-foreground text-center">
+                Cake ready hai — ab oven me bake karo 🔥
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={startBake}
+                className="px-8 py-3 rounded-full bg-gradient-to-r from-accent to-primary text-primary-foreground font-bold text-lg shadow-lg"
+                style={{ boxShadow: "0 8px 24px hsl(var(--primary) / 0.4)" }}
+              >
+                🔥 Bake Now
+              </motion.button>
+              <div className="text-[11px] text-muted-foreground text-center space-y-0.5">
+                <p>Flavour: <span className="text-foreground font-medium">{flavorObj?.name}</span></p>
+                <p>Type: <span className="text-foreground font-medium">{type === "egg" ? "With Egg" : "Eggless"}</span></p>
+                <p>Toppings: <span className="text-foreground font-medium">{fruits.map(f => FRUITS.find(x=>x.id===f.id)?.emoji).join(" ")}</span></p>
+              </div>
+            </div>
+          )}
+
           {wrong && (
             <p className="text-center text-xs text-destructive mt-2 font-medium">
               Cake pe drop karo!
@@ -422,35 +354,174 @@ const CakeBanaoGame = ({ onComplete }: CakeBanaoGameProps) => {
 
 export default CakeBanaoGame;
 
-// ============= Bake Scene (rotate + oven) =============
+// ============= Cake SVG =============
+const CakeSVG = ({
+  flavor,
+  type,
+  fruits,
+}: {
+  flavor: FlavorOpt | null;
+  type: "egg" | "eggless" | null;
+  fruits: { id: string; x: number }[];
+}) => {
+  const creamColor = flavor?.color ?? "#e8e3df";
+  const dripColor = flavor?.accent ?? "#c9c2bd";
+
+  return (
+    <motion.svg
+      viewBox="0 0 300 260"
+      className="w-72 h-72 drop-shadow-xl"
+      initial={{ scale: 0.85, opacity: 0.9 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: "spring", bounce: 0.3 }}
+    >
+      <defs>
+        <linearGradient id="sponge2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#d6a877" />
+          <stop offset="50%" stopColor="#b8854a" />
+          <stop offset="100%" stopColor="#8a5c2e" />
+        </linearGradient>
+        <linearGradient id="plate2" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f5f5f5" />
+          <stop offset="100%" stopColor="#c8c8c8" />
+        </linearGradient>
+        <linearGradient id="creamGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
+          <stop offset="40%" stopColor={creamColor} />
+          <stop offset="100%" stopColor={dripColor} />
+        </linearGradient>
+      </defs>
+
+      {/* Plate */}
+      <ellipse cx="150" cy="240" rx="120" ry="14" fill="url(#plate2)" />
+      <ellipse cx="150" cy="236" rx="105" ry="9" fill="#ffffff" opacity="0.4" />
+
+      {/* PRE-MADE BASE — always visible */}
+      <g>
+        <rect x="40" y="170" width="220" height="65" rx="6" fill="url(#sponge2)" />
+        {[55, 95, 135, 175, 215, 245].map((cx, i) => (
+          <circle key={i} cx={cx} cy={195 + (i % 2) * 18} r="2" fill="#fff" opacity="0.2" />
+        ))}
+        <rect x="70" y="118" width="160" height="58" rx="6" fill="url(#sponge2)" />
+        {[85, 120, 155, 190, 220].map((cx, i) => (
+          <circle key={i} cx={cx} cy={138 + (i % 2) * 16} r="2" fill="#fff" opacity="0.2" />
+        ))}
+      </g>
+
+      {/* Flavor cream layer */}
+      <AnimatePresence>
+        {flavor && (
+          <motion.g
+            key={flavor.id}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, type: "spring" }}
+          >
+            {/* Bottom tier cream */}
+            <path
+              d="M40 170 Q60 158 90 168 T150 165 T210 168 T260 170 L260 180 L40 180 Z"
+              fill="url(#creamGrad)"
+            />
+            {[60, 110, 165, 215].map((x, i) => (
+              <ellipse
+                key={i}
+                cx={x}
+                cy={184 + (i % 2) * 4}
+                rx="6"
+                ry={8 + (i % 2) * 3}
+                fill={dripColor}
+              />
+            ))}
+            {/* Top tier cream */}
+            <path
+              d="M70 118 Q90 108 120 115 T180 113 T230 118 L230 126 L70 126 Z"
+              fill="url(#creamGrad)"
+            />
+            {[88, 135, 175, 215].map((x, i) => (
+              <ellipse
+                key={i}
+                cx={x}
+                cy={131 + (i % 2) * 3}
+                rx="5"
+                ry={7 + (i % 2) * 2}
+                fill={dripColor}
+              />
+            ))}
+            <ellipse cx="150" cy="115" rx="60" ry="6" fill="#ffffff" opacity="0.55" />
+          </motion.g>
+        )}
+      </AnimatePresence>
+
+      {/* Egg / Eggless badge */}
+      <AnimatePresence>
+        {type && (
+          <motion.g
+            key={type}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: "spring", bounce: 0.5 }}
+          >
+            <circle cx="248" cy="208" r="14" fill="#ffffff" stroke={type === "eggless" ? "#4caf50" : "#ff9800"} strokeWidth="2" />
+            <text x="248" y="213" textAnchor="middle" fontSize="14">
+              {type === "eggless" ? "🌿" : "🥚"}
+            </text>
+          </motion.g>
+        )}
+      </AnimatePresence>
+
+      {/* Fruit toppings */}
+      {fruits.map((fr, i) => {
+        const px = 90 + (fr.x / 100) * 120;
+        const meta = FRUITS.find((x) => x.id === fr.id)!;
+        return (
+          <motion.g
+            key={i}
+            initial={{ y: -40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ type: "spring", bounce: 0.6 }}
+          >
+            <circle cx={px} cy={108} r="10" fill={meta.color} />
+            <circle cx={px - 2.5} cy={105} r="3" fill="#ffffff" opacity="0.55" />
+            <text x={px} y={113} textAnchor="middle" fontSize="11">
+              {meta.emoji}
+            </text>
+          </motion.g>
+        );
+      })}
+    </motion.svg>
+  );
+};
+
+// ============= Bake Scene =============
 const BakeScene = ({ phase }: { phase: "rotate" | "oven" }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-amber-900 via-orange-950 to-black p-4 relative overflow-hidden">
-      {/* Heat shimmer */}
-      <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 50% 60%, #ff8c42 0%, transparent 60%)" }} />
+      <div
+        className="absolute inset-0 opacity-30"
+        style={{ background: "radial-gradient(circle at 50% 60%, #ff8c42 0%, transparent 60%)" }}
+      />
       <div className="text-center relative z-10">
         <motion.p
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-white/90 font-display text-xl mb-6"
         >
-          {phase === "rotate" ? "Cake spin ho raha hai... ✨" : "Oven me pak raha hai... 🔥"}
+          {phase === "rotate" ? "Cake oven me jaa raha hai... ✨" : "Oven me pak raha hai... 🔥"}
         </motion.p>
 
         {phase === "oven" && (
           <div className="relative mx-auto" style={{ width: 320, height: 280 }}>
-            {/* Oven frame */}
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-zinc-700 to-zinc-900 border-4 border-zinc-600 shadow-2xl" />
-            {/* Oven glass */}
-            <div className="absolute inset-4 rounded-xl overflow-hidden border-2 border-amber-700"
-              style={{ background: "radial-gradient(ellipse at center, #ff7a18 0%, #c2410c 50%, #4a1d05 100%)" }}>
-              {/* Heat glow flicker */}
-              <motion.div className="absolute inset-0"
+            <div
+              className="absolute inset-4 rounded-xl overflow-hidden border-2 border-amber-700"
+              style={{ background: "radial-gradient(ellipse at center, #ff7a18 0%, #c2410c 50%, #4a1d05 100%)" }}
+            >
+              <motion.div
+                className="absolute inset-0"
                 animate={{ opacity: [0.6, 1, 0.7, 0.95, 0.6] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
                 style={{ background: "radial-gradient(circle at 50% 80%, #ffd700 0%, transparent 60%)" }}
               />
-              {/* Rotating cake inside oven */}
               <motion.div
                 className="absolute left-1/2 top-1/2 text-6xl"
                 style={{ translateX: "-50%", translateY: "-50%" }}
@@ -459,16 +530,18 @@ const BakeScene = ({ phase }: { phase: "rotate" | "oven" }) => {
               >
                 🎂
               </motion.div>
-              {/* Sparks */}
               {Array.from({ length: 14 }).map((_, i) => (
-                <motion.span key={i} className="absolute text-xs"
+                <motion.span
+                  key={i}
+                  className="absolute text-xs"
                   initial={{ x: `${20 + Math.random() * 60}%`, y: "100%", opacity: 0 }}
                   animate={{ y: "-20%", opacity: [0, 1, 0] }}
                   transition={{ duration: 1.5 + Math.random(), repeat: Infinity, delay: Math.random() * 2 }}
-                >✨</motion.span>
+                >
+                  ✨
+                </motion.span>
               ))}
             </div>
-            {/* Oven knobs */}
             <div className="absolute -bottom-2 left-6 w-4 h-4 rounded-full bg-zinc-400 border border-zinc-700" />
             <div className="absolute -bottom-2 right-6 w-4 h-4 rounded-full bg-zinc-400 border border-zinc-700" />
           </div>
@@ -489,7 +562,7 @@ const BakeScene = ({ phase }: { phase: "rotate" | "oven" }) => {
   );
 };
 
-// ============= Finale Screen (sky + fireworks + crackers + text) =============
+// ============= Finale Screen =============
 const FinaleScreen = () => {
   const fireworks = Array.from({ length: 8 }).map((_, i) => ({
     id: i,
@@ -500,13 +573,12 @@ const FinaleScreen = () => {
   }));
 
   return (
-    <div className="min-h-screen relative overflow-hidden"
+    <div
+      className="min-h-screen relative overflow-hidden"
       style={{
-        background:
-          "linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 35%, #4a1d5e 70%, #7a2d3e 100%)",
+        background: "linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 35%, #4a1d5e 70%, #7a2d3e 100%)",
       }}
     >
-      {/* Stars */}
       {Array.from({ length: 60 }).map((_, i) => (
         <motion.div
           key={`star-${i}`}
@@ -521,8 +593,6 @@ const FinaleScreen = () => {
           transition={{ duration: 1 + Math.random() * 2, repeat: Infinity, delay: Math.random() * 2 }}
         />
       ))}
-
-      {/* Moon */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
@@ -533,8 +603,6 @@ const FinaleScreen = () => {
           boxShadow: "0 0 60px rgba(255, 213, 79, 0.6)",
         }}
       />
-
-      {/* Fireworks bursts */}
       {fireworks.map((fw) => (
         <motion.div
           key={fw.id}
@@ -566,8 +634,6 @@ const FinaleScreen = () => {
           })}
         </motion.div>
       ))}
-
-      {/* Ground crackers (fountain sparks) */}
       {[15, 50, 85].map((left, i) => (
         <div key={`crk-${i}`} className="absolute" style={{ left: `${left}%`, bottom: "8%" }}>
           {Array.from({ length: 24 }).map((_, j) => {
@@ -597,8 +663,6 @@ const FinaleScreen = () => {
           })}
         </div>
       ))}
-
-      {/* Confetti rain */}
       {Array.from({ length: 35 }).map((_, i) => (
         <motion.div
           key={`conf-${i}`}
@@ -610,8 +674,6 @@ const FinaleScreen = () => {
           <span className="text-xl">{["🎉", "🎊", "✨", "💖", "🎀", "⭐", "🌸"][i % 7]}</span>
         </motion.div>
       ))}
-
-      {/* Center text */}
       <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 z-10">
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
