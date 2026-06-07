@@ -614,6 +614,7 @@ const BakingScene = ({
 
   useEffect(() => {
     if (done) return;
+    startRef.current = Date.now() - elapsed; // resume-friendly (replay resets elapsed to 0)
     const id = setInterval(() => {
       const e = Date.now() - startRef.current;
       setElapsed(e);
@@ -624,6 +625,7 @@ const BakingScene = ({
       }
     }, 80);
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [done]);
 
   const pct = Math.min(100, (elapsed / BAKE_DURATION_MS) * 100);
@@ -635,7 +637,12 @@ const BakingScene = ({
   const handleTakeOut = () => {
     if (done) return;
     setDone(live);
-    setTimeout(onFinish, 3200);
+  };
+
+  const handleReplay = () => {
+    setDone(null);
+    setElapsed(0);
+    startRef.current = Date.now();
   };
 
   return (
@@ -700,9 +707,17 @@ const BakingScene = ({
         {/* Timer + progress */}
         <div className="w-full mt-5 px-2">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-white/80 text-xs font-medium">
-              {(elapsed / 1000).toFixed(1)}s / {(BAKE_DURATION_MS / 1000).toFixed(0)}s
-            </span>
+            <div className="flex items-baseline gap-2">
+              <span
+                className="font-display font-bold text-2xl tabular-nums"
+                style={{ color: meta.color, textShadow: `0 0 12px ${meta.color}88` }}
+              >
+                {pct.toFixed(0)}%
+              </span>
+              <span className="text-white/70 text-[11px] font-medium tabular-nums">
+                {(elapsed / 1000).toFixed(1)}s / {(BAKE_DURATION_MS / 1000).toFixed(0)}s
+              </span>
+            </div>
             <motion.span
               key={current}
               initial={{ scale: 0.9, opacity: 0 }}
@@ -724,6 +739,11 @@ const BakingScene = ({
             />
           </div>
           <p className="text-center text-white/70 text-xs mt-2 italic">{meta.tip}</p>
+          {!done && (
+            <p className="text-center text-white/50 text-[10px] mt-1.5 tracking-wider uppercase">
+              🔒 Layers &amp; toppings locked while baking
+            </p>
+          )}
         </div>
 
         {/* Take out button */}
@@ -768,14 +788,23 @@ const BakingScene = ({
                   Baked at {pct.toFixed(0)}% · {(elapsed / 1000).toFixed(1)}s
                 </div>
                 <p className="text-sm text-foreground/90 leading-relaxed">{meta.result}</p>
-                <div className="mt-4 flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
-                  <span>Aage badh rahe hain</span>
-                  <motion.span
-                    animate={{ opacity: [0.2, 1, 0.2] }}
-                    transition={{ duration: 1.2, repeat: Infinity }}
+                <div className="mt-5 flex gap-2">
+                  <button
+                    onClick={handleReplay}
+                    className="flex-1 py-2.5 rounded-full border-2 border-border bg-muted/30 text-foreground text-sm font-semibold hover:bg-muted/60 transition-colors"
                   >
-                    …
-                  </motion.span>
+                    🔁 Replay Bake
+                  </button>
+                  <button
+                    onClick={onFinish}
+                    className="flex-1 py-2.5 rounded-full text-white text-sm font-bold shadow-lg"
+                    style={{
+                      background: `linear-gradient(135deg, ${meta.color}, #ff5722)`,
+                      boxShadow: `0 6px 18px ${meta.color}66`,
+                    }}
+                  >
+                    Continue →
+                  </button>
                 </div>
               </motion.div>
             </motion.div>
