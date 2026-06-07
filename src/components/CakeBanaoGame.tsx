@@ -561,20 +561,40 @@ const CakeSVG = ({
 // ============= Baking Scene with real cake + timer =============
 const BAKE_DURATION_MS = 8000;
 
-type Doneness = "raw" | "baking" | "ready" | "overbaked";
+type Doneness = "undercooked" | "perfect" | "overbaked";
 
+// Perfect zone: 65%–95% of bake duration. Below = undercooked, above = overbaked.
 const donenessFor = (pct: number): Doneness => {
-  if (pct < 35) return "raw";
-  if (pct < 70) return "baking";
-  if (pct < 92) return "ready";
+  if (pct < 65) return "undercooked";
+  if (pct <= 95) return "perfect";
   return "overbaked";
 };
 
-const DONENESS_META: Record<Doneness, { label: string; emoji: string; color: string; tip: string }> = {
-  raw: { label: "Undercooked", emoji: "🥶", color: "#7a8edb", tip: "Abhi kachha hai — thoda aur ruk!" },
-  baking: { label: "Baking…", emoji: "🔥", color: "#ff8c42", tip: "Sundar khushboo aa rahi hai…" },
-  ready: { label: "Perfectly Ready!", emoji: "✨", color: "#4caf50", tip: "Abhi nikaalo — perfect doneness!" },
-  overbaked: { label: "Overbaked", emoji: "🥵", color: "#c2410c", tip: "Thoda jal gaya — jaldi nikaalo!" },
+const DONENESS_META: Record<
+  Doneness,
+  { label: string; emoji: string; color: string; tip: string; result: string }
+> = {
+  undercooked: {
+    label: "Undercooked",
+    emoji: "🥶",
+    color: "#7a8edb",
+    tip: "Abhi kachha hai — thoda aur ruk!",
+    result: "Cake andar se thoda gila reh gaya — agli baar thoda aur sabr! 💙",
+  },
+  perfect: {
+    label: "Perfect!",
+    emoji: "✨",
+    color: "#4caf50",
+    tip: "Golden zone — abhi nikaalo!",
+    result: "Wah! Perfectly baked golden cake — Khushi ke liye bilkul sahi! 💚",
+  },
+  overbaked: {
+    label: "Overbaked",
+    emoji: "🥵",
+    color: "#c2410c",
+    tip: "Jaldi nikaalo — jal raha hai!",
+    result: "Thoda crispy ho gaya — par pyaar se banaya hai toh chalega! 🧡",
+  },
 };
 
 const BakingScene = ({
@@ -597,7 +617,7 @@ const BakingScene = ({
     const id = setInterval(() => {
       const e = Date.now() - startRef.current;
       setElapsed(e);
-      if (e >= BAKE_DURATION_MS + 2500) {
+      if (e >= BAKE_DURATION_MS + 3000) {
         // auto take out as overbaked
         setDone("overbaked");
         clearInterval(id);
@@ -615,7 +635,7 @@ const BakingScene = ({
   const handleTakeOut = () => {
     if (done) return;
     setDone(live);
-    setTimeout(onFinish, 2200);
+    setTimeout(onFinish, 3200);
   };
 
   return (
@@ -720,6 +740,47 @@ const BakingScene = ({
         >
           {done ? `${meta.emoji} ${meta.label}` : "🧤 Take Out"}
         </motion.button>
+
+        {/* Doneness result overlay */}
+        <AnimatePresence>
+          {done && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm p-6"
+            >
+              <motion.div
+                initial={{ scale: 0.7, y: 30, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                transition={{ type: "spring", bounce: 0.5 }}
+                className="bg-card rounded-2xl border-2 p-6 max-w-sm w-full text-center shadow-2xl"
+                style={{ borderColor: meta.color }}
+              >
+                <div className="text-6xl mb-3">{meta.emoji}</div>
+                <div
+                  className="text-2xl font-display font-bold mb-2"
+                  style={{ color: meta.color }}
+                >
+                  {meta.label}
+                </div>
+                <div className="text-xs uppercase tracking-widest text-muted-foreground mb-3">
+                  Baked at {pct.toFixed(0)}% · {(elapsed / 1000).toFixed(1)}s
+                </div>
+                <p className="text-sm text-foreground/90 leading-relaxed">{meta.result}</p>
+                <div className="mt-4 flex items-center justify-center gap-1 text-[11px] text-muted-foreground">
+                  <span>Aage badh rahe hain</span>
+                  <motion.span
+                    animate={{ opacity: [0.2, 1, 0.2] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                  >
+                    …
+                  </motion.span>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
