@@ -1,128 +1,72 @@
-# 3-Game Sequence for Khushi 🎂
+## 1. Scratch-to-Reveal on Photo Pages
 
-Current flow: `splash → countdown → game (MemoryGame) → card → ending`
+Embed a scratch-card overlay **inside the existing book pages** (not a separate screen). Photo + shayari render normally underneath; a silver/gradient coating sits on top until user scratches enough to reveal.
 
-New flow: `splash → countdown → game1 (BalloonPop) → game2 (MemoryGame) → game3 (CakeBanao) → card → ending`
+**Target pages:** photo indices `3, 6, 9, 12, 14` (every 3rd page, plus the last). Other photo pages stay normal fade-in.
 
-Har game complete hone ke baad next game auto-trigger hoga. Teeno complete hone ke baad hi BirthdayCard khulega.
+### Component: `src/components/ScratchOverlay.tsx` (new)
+- Wraps children (the PhotoCard content).
+- Canvas absolutely positioned over the photo area, filled with a soft silver/pastel gradient + tiny "✨ Scratch karo ✨" hint text drawn on canvas.
+- Pointer/touch listeners: `globalCompositeOperation = "destination-out"` to erase a soft circular brush (radius ~28px) along the path.
+- Tracks % erased (sampled every N strokes via `getImageData` on a downscaled offscreen canvas for perf).
+- At **55% erased** → auto fade-out the remaining coating (300ms) + sparkle burst (framer-motion particles) + haptic vibrate (if supported) + soft chime.
+- Calls `onRevealed()` so parent marks page ready (so the Next button enables only after reveal).
+- Light/dark theme aware via semantic HSL tokens.
 
----
+### Edits to `src/components/BirthdayCard.tsx`
+- Add `const SCRATCH_PAGES = new Set([3, 6, 9, 12, 14])` (1-based photo index = `currentPage`).
+- In the photo branch, wrap `<PhotoCard …/>` with `<ScratchOverlay>` when `SCRATCH_PAGES.has(currentPage)`.
+- Defer `setPageReady(true)` until `onRevealed` fires for scratch pages (PhotoCard's normal `onReady` still fires underneath so image is preloaded).
+- Shayari fade-in delayed until reveal on those pages, so it feels like the line "appears" with the photo.
 
-## Game 1 — Balloon Pop 🎈 (KHUSHI Speller)
+## 2. Butterfly Catch — Game 4 (`src/components/ButterflyCatchGame.tsx`, new)
 
-**Concept:** Screen pe floating balloons, tap karke pop. Har balloon me ek letter — sahi order me K-H-U-S-H-I spell karna hai.
+Placed **after CakeBanao, before BirthdayCard**.
 
-**Mechanics:**
-- 6 letters spell karne hain: **K → H → U → S → H → I**
-- Continuously balloons spawn hote rahenge (random colors: pink, purple, blue, yellow, mint), bottom se top tak float karte hue
-- Har balloon pe ek letter (mix of needed + distractor letters like A, B, M, R, etc.)
-- User ko **sequence** maintain karna hai — agla expected letter wala balloon hi pop kare
-- Galat letter pop kiya → balloon shake + red flash, progress reset nahi hoga but "Oops!" toast
-- Sahi letter → balloon burst animation (scale + fade + confetti particles), top header me letter light up
-- Top header: `_ _ _ _ _ _` slots — pop hote hi letter fill ho jaata hai with bounce
-- Saare 6 letters complete → "KHUSHI! 🎉" celebration + auto-advance to Game 2
+### Routing edit in `src/pages/Index.tsx`
+- Extend `Phase` with `"game4"`.
+- `game3` `onComplete` → `setPhase("game4")`.
+- `game4` renders `<ButterflyCatchGame onComplete={() => setPhase("card")} />`.
 
-**Visuals:**
-- Soft pastel gradient background (already-matching dark/light theme tokens)
-- Balloons: SVG/CSS shapes with string, gentle sway animation
-- Float duration: ~6-8s per balloon, spawn rate ~1.2s
-- Use existing `motion` from framer-motion (already in project)
+### Gameplay
+- 10 sequential rounds. Each round shows a target color prompt: "Ab **Pink** titli pakdo 🦋" (Hinglish), with a colored chip + count `3 / 10`.
+- Colors cycle through: pink, blue, yellow, purple, orange, red, cyan, green, magenta, gold (10 distinct).
+- Multiple butterflies (4–6) flutter on screen at once across all colors. User must tap the one matching current target.
+  - Correct tap → butterfly does "caught" animation (shrink + sparkle + glow), +1 progress, next color prompt slides in.
+  - Wrong color → butterfly does a quick "escape" wing-flap dodge away from finger, soft shake + red flash on screen edge (no penalty, just feedback).
+- Round 10 cleared → confetti burst + "10/10 titliyan pakdi! 🦋✨" overlay + Continue → `onComplete()`.
 
-**Files:**
-- New: `src/components/BalloonPopGame.tsx`
+### Realistic butterfly motion
+- Each butterfly is a small SVG (two wing paths mirrored) animated with:
+  - **Wing flap:** CSS/inline transform `scaleX` on each wing on a 90–140ms cycle (jittered per-butterfly so they're not in sync).
+  - **Flight path:** RAF loop. State = `{x, y, vx, vy, heading, wingPhase}`. Each frame:
+    - Add slight perlin-ish noise to `heading` (small random delta) → curving flight.
+    - Occasionally pick a new waypoint and ease toward it (Bezier-ish) for that "fluttery zigzag".
+    - Tilt SVG by `heading` so it banks into turns.
+    - Wrap softly at screen edges (turn around, not teleport).
+  - **Idle pauses:** ~10% chance per second to briefly settle (slow vx/vy, wing flap slows) on a flower/leaf SVG, then take off again.
+- Hit detection: tap within bounding circle (~32px radius). Touch-friendly.
+- "Escape dodge" on wrong tap: spike `vx/vy` away from tap point for 600ms.
 
----
+### Visual / theme
+- Background: soft garden gradient using semantic tokens (`--background` → accent), with parallax flower silhouettes drifting slowly.
+- Score HUD top-center: target color chip + `caught / 10` + small "Skip / Pass" not provided (must complete).
+- Light/dark mode aware.
 
-## Game 2 — Memory Match 🧠 (existing, untouched)
+### Audio
+- Tiny "catch" chime (Web Audio API oscillator, no asset) on correct tap.
+- Soft "whoosh" on wrong tap.
+- Final completion: short sparkle arpeggio. (No external assets needed.)
 
-Current `MemoryGame.tsx` as-is. 6-pair emoji match. Onki naya prop pass hoga `onComplete` jo Game 3 trigger karega.
+## 3. Memory updates
+- New memory `mem://features/scratch-reveal` — scratch overlay on photo pages 3/6/9/12/14, 55% threshold, gates Next button.
+- New memory `mem://features/butterfly-catch` — Game 4, 10 sequential color targets, RAF physics, after CakeBanao before Card.
+- Update `mem://features/memory-game` → rename concept to "4-Game Unlock Sequence" and append Butterfly Catch as step 4.
+- Update `mem://index.md` Core line + Memories list.
 
----
+## Files
+- **New:** `src/components/ScratchOverlay.tsx`, `src/components/ButterflyCatchGame.tsx`
+- **Edited:** `src/components/BirthdayCard.tsx`, `src/pages/Index.tsx`
+- **Memory:** `mem://features/scratch-reveal`, `mem://features/butterfly-catch`, update existing index + memory-game note.
 
-## Game 3 — Cake Banao 🎂 (Drag & Drop Assembly)
-
-**Concept:** Khushi ke liye apna birthday cake step-by-step assemble karna. 4 stages — each stage me ek ingredient drag karke cake pe drop karna.
-
-**Stages:**
-1. **Base** — Plate pe sponge base drag karo
-2. **Cream** — Cream/frosting ki layer base pe drag karo
-3. **Cherries** — 3 cherries one-by-one top pe drag karo
-4. **Candles** — Lit candle drag karo (with flame animation)
-
-**Mechanics:**
-- Left side: ingredient tray (current stage ka item highlighted, others dimmed)
-- Center: cake assembly area (showing progress visually)
-- Right/bottom: instruction text: "Step 1/4: Base rakhho 🍰"
-- HTML5 native drag-and-drop (`draggable`, `onDragStart`, `onDrop`) — no extra library, works on desktop
-- Touch: use pointer events / framer-motion `drag` for mobile compatibility
-- Drop zone has hover-glow when ingredient is dragged over
-- Wrong drop area → ingredient snap-back with shake
-- Correct drop → ingredient locks into place with bounce, progress bar advances, next stage unlocks
-- Last candle placed → cake "glows", flame animates, confetti burst, "Happy Birthday Khushi! 🎉" → auto-advance to BirthdayCard
-
-**Visuals:**
-- Cake built as stacked SVG layers (plate → sponge → cream → cherries → candles)
-- Each layer fades-in + scales when dropped
-- Cream layer = soft white/pink gradient with drip edges
-- Candles flicker with small flame `<motion.div>` animation
-
-**Files:**
-- New: `src/components/CakeBanaoGame.tsx`
-
----
-
-## Index.tsx Wiring Changes
-
-**Phase type update:**
-```ts
-type Phase = "splash" | "countdown" | "game1" | "game2" | "game3" | "card" | "ending";
-```
-
-**Render section:**
-```tsx
-{phase === "game1" && <BalloonPopGame onComplete={() => setPhase("game2")} />}
-{phase === "game2" && <MemoryGame onComplete={() => setPhase("game3")} />}
-{phase === "game3" && <CakeBanaoGame onComplete={() => setPhase("card")} />}
-```
-
-**Countdown unlock:**
-```ts
-const handleCountdownUnlock = useCallback(() => setPhase("game1"), []);
-```
-
-**3-min auto re-lock effect:** Update condition to include `game1`, `game2`, `game3` in `isPostUnlock` so re-lock works during all games too:
-```ts
-const isPostUnlock = ["game1","game2","game3","card","ending"].includes(phase);
-```
-
-**Audio logic:** Update `prev === "countdown" && phase === "game"` → `prev === "countdown" && phase === "game1"` for birthday.mp3 crossfade trigger.
-
----
-
-## Shared UI Pattern (consistency across all 3 games)
-
-- Same card container style: `bg-card rounded-2xl shadow-2xl border border-border`
-- Same header band: `bg-primary` with title + progress dots
-- Same completion screen: spring-scale `🎉` + "Unlocked!" / "Next Game!" copy + 1.5s auto-advance
-- All use semantic tokens (no hardcoded colors)
-- Dark/light mode auto-supported via existing tokens
-
----
-
-## Memory Update (after build)
-
-Update `mem://features/memory-game` description → rename concept to **"3-Game Unlock Sequence"** and document the order: Balloon Pop → Memory Match → Cake Banao.
-
----
-
-## Technical Summary
-
-| File | Action |
-|---|---|
-| `src/components/BalloonPopGame.tsx` | **New** — floating balloons, KHUSHI sequence speller |
-| `src/components/CakeBanaoGame.tsx` | **New** — 4-stage drag-drop cake assembly |
-| `src/components/MemoryGame.tsx` | Unchanged |
-| `src/pages/Index.tsx` | Add `game1`/`game2`/`game3` phases, update audio + re-lock conditions |
-| Memory file | Update to reflect 3-game sequence |
-
-No backend changes. No new dependencies. Pure frontend, framer-motion only.
+No backend / schema changes. No new dependencies (framer-motion already used).
