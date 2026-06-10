@@ -129,10 +129,9 @@ const Index = () => {
         countdown.play().catch(() => {});
         fadeAudio("countdown", countdown, 0, 1, FADE_DURATION);
       }
-      const isPostCountdown = ["game1","game2","game3","card","ending"].includes(phase);
+      const isPostCountdown = ["game1","game2","game3","game4","card","ending"].includes(phase);
       if (isPostCountdown && birthday) {
         birthday.volume = 0;
-        // (game4 included above)
         birthday.play().catch(() => {});
         fadeAudio("birthday", birthday, 0, 1, FADE_DURATION);
       }
@@ -146,7 +145,7 @@ const Index = () => {
   // Auto re-lock back to countdown after 3 minutes if real birthday hasn't arrived yet.
   // Applies once user has unlocked early (via password) and is browsing game/card/ending.
   useEffect(() => {
-    const isPostUnlock = ["game1","game2","game3","card","ending"].includes(phase);
+    const isPostUnlock = ["game1","game2","game3","game4","card","ending"].includes(phase);
     if (!isPostUnlock) return;
     if (Date.now() >= TARGET_DATE.getTime()) return; // birthday actually arrived — keep open
 
