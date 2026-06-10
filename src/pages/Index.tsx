@@ -2,12 +2,13 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import MemoryGame from "@/components/MemoryGame";
 import BalloonPopGame from "@/components/BalloonPopGame";
 import CakeBanaoGame from "@/components/CakeBanaoGame";
+import ButterflyCatchGame from "@/components/ButterflyCatchGame";
 import BirthdayCard from "@/components/BirthdayCard";
 import SplashScreen from "@/components/SplashScreen";
 import CountdownScreen from "@/components/CountdownScreen";
 import EndingScreen from "@/components/EndingScreen";
 
-type Phase = "splash" | "countdown" | "game1" | "game2" | "game3" | "card" | "ending";
+type Phase = "splash" | "countdown" | "game1" | "game2" | "game3" | "game4" | "card" | "ending";
 
 const TARGET_DATE = new Date("2026-07-10T00:00:00");
 const FADE_DURATION = 2000;
@@ -96,7 +97,7 @@ const Index = () => {
     if (!audio) return;
     const handleEnded = () => {
       if (musicMuted) return;
-      const isPostCountdown = ["game1","game2","game3","card","ending"].includes(phase);
+      const isPostCountdown = ["game1","game2","game3","game4","card","ending"].includes(phase);
       if (isPostCountdown) {
         audio.currentTime = 0;
         audio.volume = 0;
@@ -175,7 +176,11 @@ const Index = () => {
       )}
 
       {phase === "game3" && (
-        <CakeBanaoGame onComplete={() => setPhase("card")} />
+        <CakeBanaoGame onComplete={() => setPhase("game4")} />
+      )}
+
+      {phase === "game4" && (
+        <ButterflyCatchGame onComplete={() => setPhase("card")} />
       )}
 
       {phase === "card" && (
