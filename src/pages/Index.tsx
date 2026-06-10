@@ -132,6 +132,7 @@ const Index = () => {
       const isPostCountdown = ["game1","game2","game3","card","ending"].includes(phase);
       if (isPostCountdown && birthday) {
         birthday.volume = 0;
+        // (game4 included above)
         birthday.play().catch(() => {});
         fadeAudio("birthday", birthday, 0, 1, FADE_DURATION);
       }
