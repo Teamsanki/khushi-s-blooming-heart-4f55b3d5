@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import HeartTree from "./HeartTree";
 import SparklingName from "./SparklingName";
+import ScratchOverlay from "./ScratchOverlay";
 import { supabase } from "@/integrations/supabase/client";
 
 const photos = [
@@ -24,6 +25,8 @@ const photos = [
 
 const shayari =
   "Khushi naam hai tera, khushi hi tu laati hai... Jab se college mein mili, zindagi khubsurat ho gayi hai. Tu sirf junior nahi, tu dil ki behen hai meri. Happy Birthday Khushi! Hamesha khush reh! 🎂💖";
+
+const SCRATCH_PAGES = new Set([3, 6, 9, 12, 14]);
 
 // Typewriter hook
 const useTypewriter = (text: string, speed = 40, start = true) => {
@@ -239,6 +242,13 @@ const BirthdayCard = ({ onComplete }: { onComplete?: () => void }) => {
 
     if (currentPage >= 1 && currentPage <= photos.length) {
       const photo = photos[currentPage - 1];
+      if (SCRATCH_PAGES.has(currentPage)) {
+        return (
+          <ScratchOverlay onRevealed={() => setPageReady(true)}>
+            <PhotoCard photo={photo} onReady={() => { /* gated by scratch */ }} />
+          </ScratchOverlay>
+        );
+      }
       return <PhotoCard photo={photo} onReady={() => setPageReady(true)} />;
     }
 

@@ -2,12 +2,13 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import MemoryGame from "@/components/MemoryGame";
 import BalloonPopGame from "@/components/BalloonPopGame";
 import CakeBanaoGame from "@/components/CakeBanaoGame";
+import ButterflyCatchGame from "@/components/ButterflyCatchGame";
 import BirthdayCard from "@/components/BirthdayCard";
 import SplashScreen from "@/components/SplashScreen";
 import CountdownScreen from "@/components/CountdownScreen";
 import EndingScreen from "@/components/EndingScreen";
 
-type Phase = "splash" | "countdown" | "game1" | "game2" | "game3" | "card" | "ending";
+type Phase = "splash" | "countdown" | "game1" | "game2" | "game3" | "game4" | "card" | "ending";
 
 const TARGET_DATE = new Date("2026-07-10T00:00:00");
 const FADE_DURATION = 2000;
@@ -96,7 +97,7 @@ const Index = () => {
     if (!audio) return;
     const handleEnded = () => {
       if (musicMuted) return;
-      const isPostCountdown = ["game1","game2","game3","card","ending"].includes(phase);
+      const isPostCountdown = ["game1","game2","game3","game4","card","ending"].includes(phase);
       if (isPostCountdown) {
         audio.currentTime = 0;
         audio.volume = 0;
@@ -128,7 +129,7 @@ const Index = () => {
         countdown.play().catch(() => {});
         fadeAudio("countdown", countdown, 0, 1, FADE_DURATION);
       }
-      const isPostCountdown = ["game1","game2","game3","card","ending"].includes(phase);
+      const isPostCountdown = ["game1","game2","game3","game4","card","ending"].includes(phase);
       if (isPostCountdown && birthday) {
         birthday.volume = 0;
         birthday.play().catch(() => {});
@@ -144,7 +145,7 @@ const Index = () => {
   // Auto re-lock back to countdown after 3 minutes if real birthday hasn't arrived yet.
   // Applies once user has unlocked early (via password) and is browsing game/card/ending.
   useEffect(() => {
-    const isPostUnlock = ["game1","game2","game3","card","ending"].includes(phase);
+    const isPostUnlock = ["game1","game2","game3","game4","card","ending"].includes(phase);
     if (!isPostUnlock) return;
     if (Date.now() >= TARGET_DATE.getTime()) return; // birthday actually arrived — keep open
 
@@ -175,7 +176,11 @@ const Index = () => {
       )}
 
       {phase === "game3" && (
-        <CakeBanaoGame onComplete={() => setPhase("card")} />
+        <CakeBanaoGame onComplete={() => setPhase("game4")} />
+      )}
+
+      {phase === "game4" && (
+        <ButterflyCatchGame onComplete={() => setPhase("card")} />
       )}
 
       {phase === "card" && (
