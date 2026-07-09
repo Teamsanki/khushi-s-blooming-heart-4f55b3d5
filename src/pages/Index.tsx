@@ -7,7 +7,7 @@ import SplashScreen from "@/components/SplashScreen";
 import CountdownScreen from "@/components/CountdownScreen";
 import EndingScreen from "@/components/EndingScreen";
 
-type Phase = "splash" | "countdown" | "game1" | "game2" | "card" | "ending";
+type Phase = "splash" | "countdown" | "game1" | "game2" | "game3" | "card" | "ending";
 
 const TARGET_DATE = new Date("2026-07-10T00:00:00");
 const FADE_DURATION = 2000;
@@ -176,10 +176,6 @@ const Index = () => {
 
       {phase === "game3" && (
         <CakeBanaoGame onComplete={() => setPhase("game4")} />
-      )}
-
-      {phase === "game4" && (
-        <ButterflyCatchGame onComplete={() => setPhase("card")} />
       )}
 
       {phase === "card" && (
