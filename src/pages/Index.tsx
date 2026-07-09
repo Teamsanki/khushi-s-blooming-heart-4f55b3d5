@@ -7,7 +7,7 @@ import SplashScreen from "@/components/SplashScreen";
 import CountdownScreen from "@/components/CountdownScreen";
 import EndingScreen from "@/components/EndingScreen";
 
-type Phase = "splash" | "countdown" | "game1" | "game2" | "game3" | "game4" | "card" | "ending";
+type Phase = "splash" | "countdown" | "game1" | "game2" | "game3" | "card" | "ending";
 
 const TARGET_DATE = new Date("2026-07-10T00:00:00");
 const FADE_DURATION = 2000;
