@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import MemoryGame from "@/components/MemoryGame";
 import BalloonPopGame from "@/components/BalloonPopGame";
 import CakeBanaoGame from "@/components/CakeBanaoGame";
-import ButterflyCatchGame from "@/components/ButterflyCatchGame";
 import BirthdayCard from "@/components/BirthdayCard";
 import SplashScreen from "@/components/SplashScreen";
 import CountdownScreen from "@/components/CountdownScreen";
